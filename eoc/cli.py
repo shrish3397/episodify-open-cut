@@ -16,6 +16,13 @@ from eoc.parser import parse_subtitles
 from eoc.recipe import RecipeValidationError, load_recipe, save_recipe, validate_recipe_data
 from eoc.snapper import snap_to_micro_break
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 
 def print_banner() -> None:
     banner = rf"""
@@ -69,7 +76,9 @@ def handle_cut(args: argparse.Namespace) -> int:
     out_path = args.output
     if not out_path:
         slug = args.title.lower().replace(" ", "-").replace(":", "")
-        out_path = f"{slug}-{args.year}.eoc.json"
+        filename = f"{slug}-{args.year}.eoc.json"
+        out_dir = Path("output")
+        out_path = str(out_dir / filename) if out_dir.is_dir() else filename
 
     saved = save_recipe(recipe, out_path)
     print(f"\n✨ Successfully generated {recipe.total_episodes}-episode miniseries cut!")
@@ -183,7 +192,13 @@ def handle_export(args: argparse.Namespace) -> int:
             print(f"❌ Unsupported format: {fmt}", file=sys.stderr)
             return 1
 
-        out_path = args.output or f"{Path(args.recipe).stem}_chapters{ext}"
+        if args.output:
+            out_path = args.output
+        else:
+            filename = f"{Path(args.recipe).stem}_chapters{ext}"
+            out_dir = Path("output")
+            out_path = str(out_dir / filename) if out_dir.is_dir() else filename
+
         Path(out_path).write_text(content, encoding="utf-8")
         print(f"✅ Exported {fmt.upper()} chapters to: {out_path}")
         return 0

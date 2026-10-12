@@ -23,7 +23,9 @@ htmlcov/
 # IDE and OS
 .DS_Store
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.swp
 *.swo
 
@@ -31,3 +33,11 @@ htmlcov/
 .env
 .env.local
 *.key
+
+# Data & Output directories
+output/*
+!output/.gitkeep
+data/*.mp4
+data/*.mkv
+data/*.mov
+data/*.avi

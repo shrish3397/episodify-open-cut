@@ -25,7 +25,9 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Video",
 ]
-dependencies = []
+dependencies = [
+    "python-dotenv>=1.0.0",
+]
 
 [project.optional-dependencies]
 ai = [
@@ -38,6 +40,7 @@ dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.4.0",
+    "ipykernel>=6.29.0",
 ]
 
 [project.scripts]
@@ -47,3 +50,15 @@ episodify = "eoc.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["eoc*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

@@ -18,6 +18,13 @@ from typing import Any, Dict, List, Optional
 from eoc.models import Episode, Recipe, RecipeMeta, SubtitleCue, seconds_to_timestamp, timestamp_to_seconds
 from eoc.snapper import snap_to_micro_break
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 
 SYSTEM_INSTRUCTION = """You are an award-winning film editor, television showrunner, and dramaturgist.
 Your task is to transform a feature-length film screenplay/subtitles into a bingeable prestige miniseries.
