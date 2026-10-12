@@ -48,10 +48,12 @@
       );
     }
 
-    if (activeVideo) {
+    const v = activeVideo || findVideoElement();
+    if (v) {
       try {
-        activeVideo.currentTime = targetSec;
-        activeVideo.play().catch(() => {});
+        v.currentTime = targetSec;
+        v.play().catch(() => {});
+        console.log("[EOC] Native video seeked to:", targetSec);
       } catch (e) {
         console.warn("[EOC] Native video seek warning:", e);
       }
@@ -62,9 +64,10 @@
     if (location.hostname.includes("netflix.com")) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
     }
-    if (activeVideo) {
+    const v = activeVideo || findVideoElement();
+    if (v) {
       try {
-        activeVideo.pause();
+        v.pause();
       } catch (e) {}
     }
   }
@@ -73,32 +76,27 @@
     if (location.hostname.includes("netflix.com")) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
     }
-    if (activeVideo) {
+    const v = activeVideo || findVideoElement();
+    if (v) {
       try {
-        activeVideo.play().catch(() => {});
+        v.play().catch(() => {});
       } catch (e) {}
     }
   }
 
   // Find video player element in DOM
   function findVideoElement() {
-    // 1. Direct watch containers (Netflix, Prime, Disney+)
-    const specific = document.querySelector(
-      ".watch-video video, .VideoContainer video, .scaling-video-container video, video"
-    );
-    if (specific && (specific.videoWidth > 0 || specific.clientHeight > 0 || specific.readyState >= 1)) {
-      return specific;
-    }
-
-    // 2. All video elements on page
+    // 1. All video elements on page
     const videos = Array.from(document.querySelectorAll("video"));
     if (videos.length === 0) return null;
 
-    // Prefer video currently playing or with largest display area
+    // Prefer video currently playing, with duration, or largest display area
     return videos.reduce((best, v) => {
       const rect = v.getBoundingClientRect();
       const area = rect.width * rect.height;
-      return area > best.area ? { video: v, area } : best;
+      const score = (v.paused ? 0 : 500000) + area + (!isNaN(v.duration) && v.duration > 0 ? 10000 : 0);
+      const bestScore = (best.video.paused ? 0 : 500000) + best.area + (!isNaN(best.video.duration) && best.video.duration > 0 ? 10000 : 0);
+      return score > bestScore ? { video: v, area } : best;
     }, { video: videos[0], area: 0 }).video;
   }
 
@@ -294,6 +292,14 @@
       childList: true,
       subtree: true,
     });
+
+    // Periodic safety poll (crucial for SPAs like Hotstar and YouTube)
+    setInterval(() => {
+      const candidate = findVideoElement();
+      if (candidate && candidate !== activeVideo) {
+        attachVideo(candidate);
+      }
+    }, 1000);
   }
 
   // Listen for messages from Netflix MAIN-world bridge

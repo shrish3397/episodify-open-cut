@@ -13,10 +13,15 @@
     "activeTab"
   ],
   "host_permissions": [
+    "*://*.hotstar.com/*",
+    "*://*.jiohotstar.com/*",
+    "*://*.jiocinema.com/*",
     "*://*.netflix.com/*",
     "*://*.primevideo.com/*",
     "*://*.amazon.com/*",
     "*://*.disneyplus.com/*",
+    "*://*.sonyliv.com/*",
+    "*://*.zee5.com/*",
     "*://*.apple.com/*",
     "*://*.youtube.com/*",
     "*://localhost/*",
@@ -37,10 +42,15 @@
     },
     {
       "matches": [
+        "*://*.hotstar.com/*",
+        "*://*.jiohotstar.com/*",
+        "*://*.jiocinema.com/*",
         "*://*.netflix.com/*",
         "*://*.primevideo.com/*",
         "*://*.amazon.com/*",
         "*://*.disneyplus.com/*",
+        "*://*.sonyliv.com/*",
+        "*://*.zee5.com/*",
         "*://*.apple.com/*",
         "*://*.youtube.com/*",
         "*://localhost/*",
