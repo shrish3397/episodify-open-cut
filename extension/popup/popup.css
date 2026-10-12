@@ -1,0 +1,234 @@
+/* Episodify Open Cut - Extension Popup Styles */
+
+:root {
+  --bg-color: #0f1118;
+  --card-bg: #181c26;
+  --card-hover: #222736;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --primary-red: #e50914;
+  --gold-accent: #f5c518;
+  --text-main: #f0f3f6;
+  --text-muted: #8b949e;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 360px;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.popup-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-badge {
+  background: var(--primary-red);
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #6e7681;
+}
+
+.status-indicator.connected .status-dot {
+  background-color: #2ea44f;
+  box-shadow: 0 0 8px rgba(46, 164, 79, 0.6);
+}
+
+.status-indicator.connected .status-text {
+  color: #3fb950;
+}
+
+.section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.select-wrapper select {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.select-wrapper select:hover,
+.select-wrapper select:focus {
+  border-color: rgba(229, 9, 20, 0.6);
+}
+
+.movie-meta-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.meta-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.meta-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.meta-year {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.meta-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.episodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.episodes-list::-webkit-scrollbar {
+  width: 5px;
+}
+.episodes-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.episode-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.episode-item:hover {
+  background: var(--card-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.episode-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.episode-item-title {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.episode-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+}
+
+.episode-cliffhanger {
+  color: var(--gold-accent);
+}
+
+.play-ep-btn {
+  background: var(--primary-red);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.play-ep-btn:hover {
+  background: #ff2a36;
+  transform: scale(1.04);
+}
+
+.footer {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}

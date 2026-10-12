@@ -1,0 +1,51 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-10-13T00:00:00Z",
+  "registry": [
+    {
+      "imdb_id": "tt15398776",
+      "title": "Oppenheimer",
+      "year": 2023,
+      "runtime_seconds": 10800,
+      "total_episodes": 4,
+      "recipe_file": "oppenheimer-2023.eoc.json",
+      "pacing": "prestige_drama"
+    },
+    {
+      "imdb_id": "tt1877830",
+      "title": "The Batman",
+      "year": 2022,
+      "runtime_seconds": 10560,
+      "total_episodes": 4,
+      "recipe_file": "the-batman-2022.eoc.json",
+      "pacing": "action_thriller"
+    },
+    {
+      "imdb_id": "tt15239678",
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "runtime_seconds": 9960,
+      "total_episodes": 4,
+      "recipe_file": "dune-part-two-2024.eoc.json",
+      "pacing": "epic"
+    },
+    {
+      "imdb_id": "tt4154796",
+      "title": "Avengers: Endgame",
+      "year": 2019,
+      "runtime_seconds": 10860,
+      "total_episodes": 4,
+      "recipe_file": "avengers-endgame-2019.eoc.json",
+      "pacing": "action_thriller"
+    },
+    {
+      "imdb_id": "tt0068646",
+      "title": "The Godfather",
+      "year": 1972,
+      "runtime_seconds": 10500,
+      "total_episodes": 4,
+      "recipe_file": "the-godfather-1972.eoc.json",
+      "pacing": "prestige_drama"
+    }
+  ]
+}

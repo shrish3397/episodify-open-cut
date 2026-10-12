@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Episodify Open Cut - Interactive Demo Player</title>
+  <link rel="stylesheet" href="../overlay.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #090a0f;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .demo-header {
+      padding: 20px;
+      text-align: center;
+    }
+    .demo-header h1 {
+      font-size: 24px;
+      margin: 0 0 6px 0;
+      color: #ff3b47;
+    }
+    .demo-header p {
+      color: #8b949e;
+      margin: 0;
+      font-size: 14px;
+    }
+    .player-container {
+      position: relative;
+      width: 900px;
+      max-width: 95%;
+      height: 506px;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .controls-panel {
+      width: 900px;
+      max-width: 95%;
+      margin-top: 16px;
+      background: #141721;
+      padding: 16px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .btn {
+      background: #e50914;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-secondary {
+      background: #2a2f40;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .time-display {
+      font-family: monospace;
+      font-size: 16px;
+      color: #f5c518;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-header">
+    <h1>🎬 Episodify Open Cut - Player Simulator</h1>
+    <p>Test the episodic act break triggers and cinematic card overlay in real-time.</p>
+  </div>
+
+  <div class="player-container" id="video-wrapper">
+    <video id="demo-video" controls poster="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&q=80">
+      <!-- High-quality royalty-free video clip for playback demonstration -->
+      <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+      Your browser does not support HTML5 video.
+    </video>
+  </div>
+
+  <div class="controls-panel">
+    <div>
+      <span style="color: #8b949e; font-size: 13px;">Current Playback: </span>
+      <span class="time-display" id="clock-display">00:00:00</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-secondary" id="jump-break1-btn">Fast Forward to 5s before Break 1</button>
+      <button class="btn" id="simulate-break-btn">Trigger Break Modal Now</button>
+    </div>
+  </div>
+
+  <!-- Content script & overlay included directly for offline standalone demo preview -->
+  <script src="../content.js"></script>
+  <script>
+    const video = document.getElementById("demo-video");
+    const clock = document.getElementById("clock-display");
+
+    // Demo recipe calibrated for the demo clip
+    const demoRecipe = {
+      $schema: "https://episodify.org/schema/v1.json",
+      meta: {
+        title: "The Big Adventure",
+        year: 2024,
+        runtime_seconds: 600,
+        pacing: "prestige_drama"
+      },
+      total_episodes: 3,
+      episodes: [
+        {
+          episode_number: 1,
+          title: "The Meadow Awakes",
+          start_time: "00:00:00",
+          end_time: "00:00:15",
+          cliffhanger_rating: 8.8,
+          break_rationale: "Act I setup closes as morning light exposes the intruders.",
+          recap_text: "Our gentle hero steps out into the meadow as mysterious rivals watch from the tree canopy.",
+          teaser_next: "An unexpected conflict erupts by the riverbank."
+        },
+        {
+          episode_number: 2,
+          title: "The Ambush",
+          start_time: "00:00:15",
+          end_time: "00:00:45",
+          cliffhanger_rating: 9.6,
+          break_rationale: "Midpoint crisis peak before the retaliatory strike.",
+          recap_text: "The flying squirrel initiates aerial harassment, leaving the meadow in disarray.",
+          teaser_next: "Zero hour arrives as complex contraptions are deployed."
+        },
+        {
+          episode_number: 3,
+          title: "The Reckoning",
+          start_time: "00:00:45",
+          end_time: "00:09:56",
+          cliffhanger_rating: 7.9,
+          break_rationale: "Series finale resolution.",
+          recap_text: "Justice is restored to the meadow with triumphant retribution.",
+          teaser_next: "Series finale concludes the story."
+        }
+      ]
+    };
+
+    // Load demo recipe
+    window.postMessage({ action: "SET_RECIPE", recipe: demoRecipe }, "*");
+    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ active_recipe: demoRecipe });
+    }
+
+    video.addEventListener("timeupdate", () => {
+      const s = Math.floor(video.currentTime);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      clock.textContent = `00:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    });
+
+    document.getElementById("jump-break1-btn").addEventListener("click", () => {
+      video.currentTime = 10;
+      video.play();
+    });
+
+    document.getElementById("simulate-break-btn").addEventListener("click", () => {
+      video.currentTime = 14.8;
+      video.play();
+    });
+  </script>
+</body>
+</html>

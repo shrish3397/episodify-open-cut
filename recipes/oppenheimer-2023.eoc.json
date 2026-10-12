@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Oppenheimer",
+    "year": 2023,
+    "runtime_seconds": 10800,
+    "imdb_id": "tt15398776",
+    "pacing": "prestige_drama",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Prometheus Bound",
+      "start_time": "00:00:00",
+      "end_time": "00:46:18",
+      "cliffhanger_rating": 8.5,
+      "break_rationale": "Concludes as Oppenheimer accepts the Manhattan Project mandate from General Groves; natural thematic transition to Los Alamos mesa.",
+      "recap_text": "J. Robert Oppenheimer navigates European quantum physics breakthroughs, returns to UC Berkeley, and joins General Groves to head secret atomic research.",
+      "teaser_next": "A remote desert mesa in New Mexico becomes the focal point of the secret atomic laboratory."
+    },
+    {
+      "episode_number": 2,
+      "title": "The Secret City",
+      "start_time": "00:46:18",
+      "end_time": "01:34:05",
+      "cliffhanger_rating": 9.2,
+      "break_rationale": "Ends on the eve of the Trinity test countdown as weather worsens; maximum suspense pause.",
+      "recap_text": "Scientists gather at Los Alamos amidst rising logistical hurdles while military intelligence investigates Oppenheimer's ties to Jean Tatlock.",
+      "teaser_next": "Zero hour arrives in the Jornada del Muerto desert as storm clouds gather over the 100-foot steel tower."
+    },
+    {
+      "episode_number": 3,
+      "title": "Trinity",
+      "start_time": "01:34:05",
+      "end_time": "02:15:30",
+      "cliffhanger_rating": 9.8,
+      "break_rationale": "Concludes with the fateful silent detonation shockwave and its horrifying geopolitical fallout.",
+      "recap_text": "The gadget is successfully detonated in the desert, but Oppenheimer's triumph is quickly replaced by dread over Hiroshima, Nagasaki, and the escalating arms race.",
+      "teaser_next": "Post-war Washington turns hostile as Lewis Strauss initiates a covert campaign to revoke Oppenheimer's security clearance."
+    },
+    {
+      "episode_number": 4,
+      "title": "The Chain Reaction",
+      "start_time": "02:15:30",
+      "end_time": "03:00:00",
+      "cliffhanger_rating": 8.1,
+      "break_rationale": "The miniseries concludes with Strauss's Senate humiliation and the haunting pond revelation between Oppenheimer and Einstein.",
+      "recap_text": "Oppenheimer endures the kangaroo court of the AEC Gray Board while Strauss's Cabinet nomination collapses in the US Senate.",
+      "teaser_next": "Series finale concludes the epic historical miniseries."
+    }
+  ]
+}

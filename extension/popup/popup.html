@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Episodify Open Cut</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="brand">
+        <span class="brand-badge">EOC</span>
+        <h1 class="brand-title">Episodify</h1>
+      </div>
+      <div class="status-indicator" id="player-status" title="Streaming player status">
+        <span class="status-dot"></span>
+        <span class="status-text">Detecting Player...</span>
+      </div>
+    </header>
+
+    <section class="section">
+      <label class="section-label" for="movie-select">Select Movie Cut</label>
+      <div class="select-wrapper">
+        <select id="movie-select" class="movie-select">
+          <option value="oppenheimer">Oppenheimer (2023) - 4 Episodes</option>
+          <option value="the-batman">The Batman (2022) - 4 Episodes</option>
+          <option value="dune-2">Dune: Part Two (2024) - 4 Episodes</option>
+          <option value="endgame">Avengers: Endgame (2019) - 4 Episodes</option>
+          <option value="godfather">The Godfather (1972) - 4 Episodes</option>
+          <option value="custom">📁 Load Custom .eoc.json File...</option>
+        </select>
+      </div>
+
+      <input type="file" id="custom-file-input" accept=".json,.eoc.json" style="display: none;">
+    </section>
+
+    <section class="movie-meta-card" id="movie-meta-card">
+      <div class="meta-header">
+        <h2 id="meta-title" class="meta-title">Oppenheimer</h2>
+        <span id="meta-year" class="meta-year">2023</span>
+      </div>
+      <div class="meta-sub">
+        <span id="meta-runtime">3h 00m runtime</span> &bull;
+        <span id="meta-episodes-count">4 Episodes</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <span class="section-label">Episodes & Acts</span>
+      </div>
+      <div id="episodes-list" class="episodes-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Zero-DRM Metadata Protocol &bull; AGPL-3.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

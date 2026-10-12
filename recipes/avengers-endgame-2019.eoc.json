@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Avengers: Endgame",
+    "year": 2019,
+    "runtime_seconds": 10860,
+    "imdb_id": "tt4154796",
+    "pacing": "action_thriller",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Five Years Later",
+      "start_time": "00:00:00",
+      "end_time": "00:45:20",
+      "cliffhanger_rating": 8.7,
+      "break_rationale": "Scott Lang escapes the Quantum Realm and arrives at the Avengers compound with the quantum tunnel theory.",
+      "recap_text": "Following the tragic confrontation with Thanos on the Garden, five grief-stricken years pass until Scott Lang miraculously emerges from a storage facility in San Francisco.",
+      "teaser_next": "Tony Stark cracks the Mobius strip equation as the team prepares for the Time Heist."
+    },
+    {
+      "episode_number": 2,
+      "title": "The Time Heist",
+      "start_time": "00:45:20",
+      "end_time": "01:31:10",
+      "cliffhanger_rating": 9.5,
+      "break_rationale": "Natasha Romanoff sacrifices herself on Vormir for the Soul Stone while 2014 Nebula's neural network alerts past Thanos.",
+      "recap_text": "The Avengers split into strike teams targeting 2012 New York, 2013 Asgard, and 2014 Morag to retrieve the six Infinity Stones.",
+      "teaser_next": "A duplicate Nebula infiltrates the future while Hulk prepares to wield the Stark Nano Gauntlet."
+    },
+    {
+      "episode_number": 3,
+      "title": "Out of the Ashes",
+      "start_time": "01:31:10",
+      "end_time": "02:16:40",
+      "cliffhanger_rating": 9.9,
+      "break_rationale": "Hulk snaps everyone back, the compound is vaporized from orbit by Sanctuary II, and Cap stands alone against Thanos's horde before portals open.",
+      "recap_text": "Bruce Banner snaps his fingers to restore the vanished half of the universe. Simultaneously, Thanos's warship breaches time and bombards upstate New York into rubble.",
+      "teaser_next": "Golden portals open across the destroyed battlefield as the restored universe rallies for the final stand."
+    },
+    {
+      "episode_number": 4,
+      "title": "I Am Iron Man",
+      "start_time": "02:16:40",
+      "end_time": "03:01:00",
+      "cliffhanger_rating": 8.2,
+      "break_rationale": "The grand cosmic clash culminates in Tony Stark's final snap, the lakeside memorial, and Steve Rogers passing the shield.",
+      "recap_text": "Every hero in the galaxy charges Thanos's forces. Tony Stark steals the stones and snaps his fingers, sacrificing his life to save existence.",
+      "teaser_next": "Series finale concludes the epic superhero miniseries."
+    }
+  ]
+}

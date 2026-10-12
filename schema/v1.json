@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://episodify.org/schema/v1.json",
+  "title": "EpisodifyOpenCutRecipe",
+  "description": "Schema definition for an Episodify Open Cut (.eoc.json) episodic film segmentation recipe.",
+  "type": "object",
+  "required": ["$schema", "meta", "total_episodes", "episodes"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "meta": {
+      "type": "object",
+      "required": ["title", "year", "runtime_seconds"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Original feature film title."
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1888,
+          "maximum": 2100,
+          "description": "Release year of the feature film."
+        },
+        "runtime_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "description": "Total movie runtime in seconds."
+        },
+        "imdb_id": {
+          "type": "string",
+          "pattern": "^tt[0-9]{7,10}$",
+          "description": "Canonical IMDb identifier (e.g. tt15398776)."
+        },
+        "tmdb_id": {
+          "type": "integer",
+          "description": "Canonical TMDB movie identifier."
+        },
+        "pacing": {
+          "type": "string",
+          "enum": ["prestige_drama", "action_thriller", "fast_pace", "slow_cinema", "comedy", "epic"],
+          "description": "Narrative pacing profile used for cut density."
+        },
+        "generator": {
+          "type": "string",
+          "description": "Engine or model used to generate recipe (e.g. gemini-3.8-flash, manual)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "total_episodes": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 20,
+      "description": "Total number of episodes in this miniseries cut."
+    },
+    "episodes": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "episode_number",
+          "title",
+          "start_time",
+          "end_time",
+          "cliffhanger_rating",
+          "break_rationale",
+          "recap_text",
+          "teaser_next"
+        ],
+        "properties": {
+          "episode_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Title assigned to this episode."
+          },
+          "start_time": {
+            "type": "string",
+            "pattern": "^([0-9]{2}):([0-9]{2}):([0-9]{2})(\\.[0-9]{1,3})?$",
+            "description": "Timestamp in HH:MM:SS or HH:MM:SS.mmm format marking episode start."
+          },
+          "end_time": {
+            "type": "string",
+            "pattern": "^([0-9]{2}):([0-9]{2}):([0-9]{2})(\\.[0-9]{1,3})?$",
+            "description": "Timestamp in HH:MM:SS or HH:MM:SS.mmm format marking episode cut break."
+          },
+          "cliffhanger_rating": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 10.0,
+            "description": "Suspense/cliffhanger intensity score on a scale from 0.0 to 10.0."
+          },
+          "break_rationale": {
+            "type": "string",
+            "description": "Dramaturgical reasoning for cutting the episode at this exact moment."
+          },
+          "recap_text": {
+            "type": "string",
+            "description": "Concise 'Previously on...' synopsis of this episode's key developments."
+          },
+          "teaser_next": {
+            "type": "string",
+            "description": "Teaser of what unfolds in the upcoming episode."
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

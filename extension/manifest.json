@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Episodify Open Cut",
+  "version": "1.0.0",
+  "description": "Transforms 3-hour movies into bingeable miniseries with organic act breaks and cliffhanger cards.",
+  "author": "Episodify Open Cut Contributors",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Episodify Open Cut"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.netflix.com/*",
+    "*://*.primevideo.com/*",
+    "*://*.amazon.com/*",
+    "*://*.disneyplus.com/*",
+    "*://*.apple.com/*",
+    "*://*.youtube.com/*",
+    "*://localhost/*",
+    "*://127.0.0.1/*",
+    "file:///*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.netflix.com/*",
+        "*://*.primevideo.com/*",
+        "*://*.amazon.com/*",
+        "*://*.disneyplus.com/*",
+        "*://*.apple.com/*",
+        "*://*.youtube.com/*",
+        "*://localhost/*",
+        "*://127.0.0.1/*",
+        "file:///*"
+      ],
+      "js": ["content.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["overlay.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

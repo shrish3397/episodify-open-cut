@@ -1,0 +1,208 @@
+/* Episodify Open Cut - Cinematic In-Player Overlay Styles */
+
+:root {
+  --eoc-bg: rgba(12, 14, 20, 0.95);
+  --eoc-card-bg: rgba(26, 30, 42, 0.7);
+  --eoc-border: rgba(255, 255, 255, 0.12);
+  --eoc-primary: #e50914; /* Cinema Red */
+  --eoc-primary-hover: #ff2a36;
+  --eoc-gold: #f5c518;
+  --eoc-text-main: #f0f2f5;
+  --eoc-text-muted: #9aa0a6;
+  --eoc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+#eoc-overlay-container {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--eoc-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  color: var(--eoc-text-main) !important;
+  font-family: var(--eoc-font) !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-sizing: border-box !important;
+}
+
+#eoc-overlay-container.eoc-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.eoc-modal {
+  position: relative;
+  max-width: 780px;
+  width: 90%;
+  background: var(--eoc-card-bg);
+  border: 1px solid var(--eoc-border);
+  border-radius: 18px;
+  padding: 36px 42px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(229, 9, 20, 0.15);
+  animation: eoc-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes eoc-slide-up {
+  from {
+    transform: translateY(30px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.eoc-header-tags {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.eoc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eoc-badge-act {
+  background: rgba(229, 9, 20, 0.2);
+  color: #ff4d58;
+  border: 1px solid rgba(229, 9, 20, 0.4);
+}
+
+.eoc-badge-cliffhanger {
+  background: rgba(245, 197, 24, 0.15);
+  color: var(--eoc-gold);
+  border: 1px solid rgba(245, 197, 24, 0.3);
+}
+
+.eoc-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px 0;
+  line-height: 1.2;
+}
+
+.eoc-subtitle {
+  color: var(--eoc-text-muted);
+  font-size: 15px;
+  margin-bottom: 22px;
+}
+
+.eoc-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.eoc-panel {
+  background: rgba(15, 18, 26, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.eoc-panel-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--eoc-text-muted);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.eoc-panel-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #d1d5db;
+  margin: 0;
+}
+
+.eoc-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.eoc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.eoc-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.eoc-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.eoc-btn-primary {
+  background: var(--eoc-primary);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(229, 9, 20, 0.4);
+}
+
+.eoc-btn-primary:hover {
+  background: var(--eoc-primary-hover);
+  transform: translateY(-1px);
+}
+
+/* In-player episodic HUD banner */
+#eoc-hud-bar {
+  position: absolute !important;
+  bottom: 80px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483646 !important;
+  background: rgba(15, 18, 25, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px !important;
+  padding: 8px 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  font-family: var(--eoc-font) !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6) !important;
+  transition: opacity 0.3s ease !important;
+  pointer-events: auto !important;
+}
+
+#eoc-hud-bar .eoc-hud-title {
+  font-weight: 700;
+  color: #ff4d58;
+}
+
+#eoc-hud-bar .eoc-hud-time {
+  color: var(--eoc-text-muted);
+}

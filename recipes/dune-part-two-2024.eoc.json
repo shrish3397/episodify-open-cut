@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Dune: Part Two",
+    "year": 2024,
+    "runtime_seconds": 9960,
+    "imdb_id": "tt15239678",
+    "pacing": "epic",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Usul & Muad'Dib",
+      "start_time": "00:00:00",
+      "end_time": "00:41:30",
+      "cliffhanger_rating": 8.9,
+      "break_rationale": "Paul masters the Sandworm ride across the grand dunes, earning his place among the Fedaykin warriors.",
+      "recap_text": "Paul Atreides and Lady Jessica earn acceptance with the Fremen of Sietch Tabr. Jessica drinks the Water of Life to become Reverend Mother while Paul bonds with Chani.",
+      "teaser_next": "Guerrilla raids paralyze Harkonnen spice harvesting across Arrakis, drawing the fury of Baron Harkonnen."
+    },
+    {
+      "episode_number": 2,
+      "title": "The Northern Storm",
+      "start_time": "00:41:30",
+      "end_time": "01:23:45",
+      "cliffhanger_rating": 9.3,
+      "break_rationale": "Feyd-Rautha Harkonnen is introduced in the brutal gladiatorial arena of Giedi Prime and given command of Arrakis.",
+      "recap_text": "Paul leads devastating raids on Harkonnen harvesters. On Giedi Prime, Feyd-Rautha celebrates his birthday in a deadly gladiatorial trial before being deployed to purge the Fremen.",
+      "teaser_next": "Feyd-Rautha devastates Sietch Tabr with air bombardments, forcing Paul south to confront his messianic destiny."
+    },
+    {
+      "episode_number": 3,
+      "title": "The Water of Life",
+      "start_time": "01:23:45",
+      "end_time": "02:05:10",
+      "cliffhanger_rating": 9.7,
+      "break_rationale": "Paul drinks the lethal poison Water of Life, sees all futures across space and time, and awakens as the Kwisatz Haderach.",
+      "recap_text": "Fleeing south, millions of fundamentalist Fremen proclaim Paul the Mahdi. Paul drinks the bile of a young sandworm and falls into a comatose trance between life and death.",
+      "teaser_next": "The Emperor's armada arrives in orbit above Arrakis just as a continent-sized sandstorm bears down on the capital."
+    },
+    {
+      "episode_number": 4,
+      "title": "The Prophet's Jihad",
+      "start_time": "02:05:10",
+      "end_time": "02:46:00",
+      "cliffhanger_rating": 9.1,
+      "break_rationale": "Atomic breach of the shield wall, showdown with Feyd-Rautha, and the launch of the galactic holy war.",
+      "recap_text": "Atomic warheads detonate the Shield Wall. Paul defeats Feyd-Rautha in single combat, claims the Imperial throne, and commands the Fremen armada to attack the Great Houses.",
+      "teaser_next": "Series finale concludes the epic desert sci-fi miniseries."
+    }
+  ]
+}

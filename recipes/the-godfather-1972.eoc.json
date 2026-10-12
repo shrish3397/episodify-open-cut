@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "The Godfather",
+    "year": 1972,
+    "runtime_seconds": 10500,
+    "imdb_id": "tt0068646",
+    "pacing": "prestige_drama",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "The Favor",
+      "start_time": "00:00:00",
+      "end_time": "00:43:20",
+      "cliffhanger_rating": 9.1,
+      "break_rationale": "Vito Corleone is gunned down by Sollozzo's hitmen in front of the fruit stand; Michael rushes to the hospital.",
+      "recap_text": "During Connie's summer wedding, Don Vito grants favors while war hero Michael stays detached from family affairs. Sollozzo proposes a narcotics alliance that the Don politely declines.",
+      "teaser_next": "Vito clings to life in an unguarded hospital while Michael takes his first step into the underworld."
+    },
+    {
+      "episode_number": 2,
+      "title": "A Gun in the Cistern",
+      "start_time": "00:43:20",
+      "end_time": "01:27:15",
+      "cliffhanger_rating": 9.7,
+      "break_rationale": "Michael shoots Sollozzo and Captain McCluskey at Louis Restaurant, drops the gun, and flees into the night.",
+      "recap_text": "Michael guards his father at the hospital and gets struck by corrupt Police Captain McCluskey. Michael volunteers to assassinate both enemies during a reconciliation dinner.",
+      "teaser_next": "All-out mob war erupts in New York while Michael seeks sanctuary in the rugged mountains of Sicily."
+    },
+    {
+      "episode_number": 3,
+      "title": "The Tollbooth Ambush",
+      "start_time": "01:27:15",
+      "end_time": "02:11:50",
+      "cliffhanger_rating": 9.5,
+      "break_rationale": "Sonny is massacred at the Long Beach causeway tollbooth; Vito calls a summit of the Five Families to sue for peace.",
+      "recap_text": "In Sicily, Michael falls in love with Apollonia. Back in New York, Sonny is lured into a deadly trap at the tollbooth, forcing an ailing Don Vito to broker an uneasy truce.",
+      "teaser_next": "Michael returns to take command as Don Vito collapses in the tomato garden."
+    },
+    {
+      "episode_number": 4,
+      "title": "The Baptism of Fire",
+      "start_time": "02:11:50",
+      "end_time": "02:55:00",
+      "cliffhanger_rating": 9.0,
+      "break_rationale": "The iconic baptism montage settles all family business in one stroke, ending as the study door closes on Kay.",
+      "recap_text": "While Michael stands godfather to his nephew, his capos execute the heads of the rival families across New York. Michael lies to Kay as the door is shut in her face.",
+      "teaser_next": "Series finale concludes the definitive American mafia miniseries."
+    }
+  ]
+}

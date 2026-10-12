@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "The Batman",
+    "year": 2022,
+    "runtime_seconds": 10560,
+    "imdb_id": "tt1877830",
+    "pacing": "action_thriller",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "I Am the Shadows",
+      "start_time": "00:00:00",
+      "end_time": "00:44:12",
+      "cliffhanger_rating": 8.8,
+      "break_rationale": "Ends as Batman and Gordon discover the cipher left inside Mayor Mitchell's car, exposing the Iceberg Lounge connection.",
+      "recap_text": "On Halloween night, Mayor Don Mitchell Jr. is murdered by the Riddler. Batman pairs with Lt. Jim Gordon to investigate cryptic greeting cards left addressed to 'The Batman'.",
+      "teaser_next": "A trip into Oswald Cobblepot's Iceberg Lounge uncovers a web of police payoffs and an enigmatic cat burglar named Selina Kyle."
+    },
+    {
+      "episode_number": 2,
+      "title": "The Sins of the Father",
+      "start_time": "00:44:12",
+      "end_time": "01:29:40",
+      "cliffhanger_rating": 9.4,
+      "break_rationale": "High-octane highway Batmobile pursuit ends with Penguin captured in flames, followed by Riddler's terrifying bomb attack at Mitchell's funeral.",
+      "recap_text": "Batman infiltrates the 44 Below underworld club, partners with Selina Kyle, and engages in a ferocious car chase through rush-hour rain to capture the Penguin.",
+      "teaser_next": "District Attorney Gil Colson drives a bomb into the cathedral funeral with a collar locked around his neck."
+    },
+    {
+      "episode_number": 3,
+      "title": "A Flood of Lies",
+      "start_time": "01:29:40",
+      "end_time": "02:14:15",
+      "cliffhanger_rating": 9.6,
+      "break_rationale": "The Riddler is apprehended at a diner, but his final phase—seven bomb-laden vans parked around Gotham's seawall—is armed.",
+      "recap_text": "Colson dies refusing to name the informant. Carmine Falcone is unmasked as the city's true kingpin, only to be assassinated from the shadows by Edward Nashton.",
+      "teaser_next": "The sea walls shatter. Water rushes into Gotham City while sniper disciples take aim at the crowded shelter."
+    },
+    {
+      "episode_number": 4,
+      "title": "A Flare in the Dark",
+      "start_time": "02:14:15",
+      "end_time": "02:56:00",
+      "cliffhanger_rating": 8.0,
+      "break_rationale": "Climactic rescue of the submerged citizens under the arena dome, followed by Batman's transformation from vengeance into hope.",
+      "recap_text": "Batman leads stranded citizens out of the flooded arena with a crimson rescue flare, choosing to become a beacon of hope rather than mere vengeance.",
+      "teaser_next": "Series finale concludes the gritty noir detective miniseries."
+    }
+  ]
+}

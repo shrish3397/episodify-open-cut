@@ -1,0 +1,4 @@
+# Core dependencies (Standard library is primarily used for zero-fuss execution)
+# Optional AI integration:
+google-genai>=2.25.0
+jsonschema>=4.20.0
