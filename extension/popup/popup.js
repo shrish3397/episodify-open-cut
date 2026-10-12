@@ -1,15 +1,15 @@
 // Episodify Open Cut - Popup Logic
 
 const BUILTIN_RECIPES = {
-  oppenheimer: {
+  bethlehem: {
     $schema: "https://episodify.org/schema/v1.json",
-    meta: { title: "Oppenheimer", year: 2023, runtime_seconds: 10800, imdb_id: "tt15398776" },
+    meta: { title: "Bethlehem Kudumba Unit", year: 2026, runtime_seconds: 9360, imdb_id: "tt31846512", pacing: "comedy" },
     total_episodes: 4,
     episodes: [
-      { episode_number: 1, title: "Prometheus Bound", start_time: "00:00:00", end_time: "00:46:18", cliffhanger_rating: 8.5, break_rationale: "Manhattan Project mandate accepted.", recap_text: "Oppenheimer navigates European quantum physics and returns to America.", teaser_next: "A remote desert mesa becomes the atomic lab." },
-      { episode_number: 2, title: "The Secret City", start_time: "00:46:18", end_time: "01:34:05", cliffhanger_rating: 9.2, break_rationale: "Eve of Trinity countdown.", recap_text: "Scientists gather at Los Alamos while security forces watch Robert's past.", teaser_next: "Zero hour arrives in the desert." },
-      { episode_number: 3, title: "Trinity", start_time: "01:34:05", end_time: "02:15:30", cliffhanger_rating: 9.8, break_rationale: "Detonation blastwave alters world forever.", recap_text: "The gadget is detonated in the desert; dread sets in.", teaser_next: "Strauss initiates his campaign against Robert." },
-      { episode_number: 4, title: "The Chain Reaction", start_time: "02:15:30", end_time: "03:00:00", cliffhanger_rating: 8.1, break_rationale: "Senate hearing and Einstein pond revelation.", recap_text: "Oppenheimer endures the Gray Board inquiry.", teaser_next: "Series finale concludes the epic miniseries." }
+      { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:39:15", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
+      { episode_number: 2, title: "Rhythms & Rumors", start_time: "00:39:15", end_time: "01:18:40", cliffhanger_rating: 9.1, break_rationale: "Justin confesses feelings before parish feast as elders watch.", recap_text: "Shared love for music fuels their secret romance amidst humorous neighbor encounters.", teaser_next: "An unexpected student visa for Ireland arrives, threatening their future." },
+      { episode_number: 3, title: "The Ireland Dilemma", start_time: "01:18:40", end_time: "01:57:25", cliffhanger_rating: 9.5, break_rationale: "Emotional airport departure, cutting 18 months forward to Kerala return.", recap_text: "Torn between Dublin studies and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Ashley returns to Kerala for a wedding, finding Justin waiting at the church." },
+      { episode_number: 4, title: "Harmonies of Bethlehem", start_time: "01:57:25", end_time: "02:36:00", cliffhanger_rating: 7.8, break_rationale: "Joyful choir wedding performance and heartfelt reconciliation.", recap_text: "Eighteen months after leaving, Ashley confronts past feelings, culminating in a reunion.", teaser_next: "Series finale concludes the heartwarming Malayalam miniseries." }
     ]
   },
   "the-batman": {
@@ -58,7 +58,7 @@ const BUILTIN_RECIPES = {
   }
 };
 
-let currentRecipe = BUILTIN_RECIPES.oppenheimer;
+let currentRecipe = BUILTIN_RECIPES.bethlehem;
 
 document.addEventListener("DOMContentLoaded", () => {
   const movieSelect = document.getElementById("movie-select");

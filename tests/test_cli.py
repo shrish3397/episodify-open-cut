@@ -54,7 +54,7 @@ class TestCLI(unittest.TestCase):
             self.assertTrue(Path(out_ffmpeg).exists())
             content = Path(out_ffmpeg).read_text()
             self.assertIn(";FFMETADATA1", content)
-            self.assertIn("Prometheus Bound", content)
+            self.assertIn("The Angamaly Shift", content)
 
 
 if __name__ == "__main__":

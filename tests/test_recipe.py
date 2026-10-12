@@ -16,15 +16,15 @@ class TestRecipe(unittest.TestCase):
         recipe_path = FIXTURES_DIR / "sample.eoc.json"
         recipe = load_recipe(recipe_path)
 
-        self.assertEqual(recipe.meta.title, "Oppenheimer")
-        self.assertEqual(recipe.meta.year, 2023)
-        self.assertEqual(recipe.meta.runtime_seconds, 10800)
+        self.assertEqual(recipe.meta.title, "Bethlehem Kudumba Unit")
+        self.assertEqual(recipe.meta.year, 2026)
+        self.assertEqual(recipe.meta.runtime_seconds, 9360)
         self.assertEqual(recipe.total_episodes, 4)
         self.assertEqual(len(recipe.episodes), 4)
-        self.assertEqual(recipe.episodes[0].title, "Prometheus Bound")
+        self.assertEqual(recipe.episodes[0].title, "The Angamaly Shift")
         self.assertEqual(recipe.episodes[0].start_time, "00:00:00")
-        self.assertEqual(recipe.episodes[0].end_time, "00:46:18")
-        self.assertEqual(recipe.episodes[1].start_time, "00:46:18")
+        self.assertEqual(recipe.episodes[0].end_time, "00:39:15")
+        self.assertEqual(recipe.episodes[1].start_time, "00:39:15")
 
     def test_validate_invalid_continuity(self):
         data = {
