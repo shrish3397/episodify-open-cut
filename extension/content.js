@@ -11,7 +11,11 @@
   let hudBar = null;
   let ignoreCutUntil = 0;
 
-  // Time conversion helper
+  // Netflix-specific bridge state
+  let netflixPlayerActive = false;
+  let netflixCurrentTime = 0;
+
+  // Time conversion helpers
   function timestampToSeconds(ts) {
     if (typeof ts === "number") return ts;
     const parts = ts.trim().replace(",", ".").split(":");
@@ -31,10 +35,65 @@
     return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  // Find video player element
+  // Cross-platform playback control primitives
+  function seekVideo(targetSec) {
+    if (location.hostname.includes("netflix.com")) {
+      window.postMessage(
+        {
+          source: "EOC_CONTENT",
+          action: "NETFLIX_SEEK",
+          timeMs: Math.round(targetSec * 1000),
+        },
+        "*"
+      );
+    }
+
+    if (activeVideo) {
+      try {
+        activeVideo.currentTime = targetSec;
+        activeVideo.play().catch(() => {});
+      } catch (e) {
+        console.warn("[EOC] Native video seek warning:", e);
+      }
+    }
+  }
+
+  function pauseVideo() {
+    if (location.hostname.includes("netflix.com")) {
+      window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
+    }
+    if (activeVideo) {
+      try {
+        activeVideo.pause();
+      } catch (e) {}
+    }
+  }
+
+  function playVideo() {
+    if (location.hostname.includes("netflix.com")) {
+      window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
+    }
+    if (activeVideo) {
+      try {
+        activeVideo.play().catch(() => {});
+      } catch (e) {}
+    }
+  }
+
+  // Find video player element in DOM
   function findVideoElement() {
+    // 1. Direct watch containers (Netflix, Prime, Disney+)
+    const specific = document.querySelector(
+      ".watch-video video, .VideoContainer video, .scaling-video-container video, video"
+    );
+    if (specific && (specific.videoWidth > 0 || specific.clientHeight > 0 || specific.readyState >= 1)) {
+      return specific;
+    }
+
+    // 2. All video elements on page
     const videos = Array.from(document.querySelectorAll("video"));
     if (videos.length === 0) return null;
+
     // Prefer video currently playing or with largest display area
     return videos.reduce((best, v) => {
       const rect = v.getBoundingClientRect();
@@ -116,29 +175,26 @@
     const continueBtn = container.querySelector("#eoc-continue-movie-btn");
     continueBtn?.addEventListener("click", () => {
       hideOverlay();
-      ignoreCutUntil = (activeVideo?.currentTime || 0) + 10;
-      activeVideo?.play();
+      const cur = activeVideo?.currentTime || netflixCurrentTime || 0;
+      ignoreCutUntil = cur + 10;
+      playVideo();
     });
 
     const nextBtn = container.querySelector("#eoc-next-episode-btn");
     nextBtn?.addEventListener("click", () => {
       hideOverlay();
-      if (activeVideo && nextEpisode) {
+      if (nextEpisode) {
         const targetSec = timestampToSeconds(nextEpisode.start_time);
-        activeVideo.currentTime = targetSec + 0.1;
-        ignoreCutUntil = activeVideo.currentTime + 3.0;
-        activeVideo.play();
+        seekVideo(targetSec + 0.1);
+        ignoreCutUntil = targetSec + 3.0;
       }
     });
 
     const replayBtn = container.querySelector("#eoc-replay-btn");
     replayBtn?.addEventListener("click", () => {
       hideOverlay();
-      if (activeVideo) {
-        activeVideo.currentTime = 0;
-        triggeredEpisodeBreaks.clear();
-        activeVideo.play();
-      }
+      triggeredEpisodeBreaks.clear();
+      seekVideo(0);
     });
   }
 
@@ -178,9 +234,9 @@
   }
 
   // Main playback monitoring loop
-  function checkPlaybackTime() {
-    if (!activeVideo || !activeRecipe || !activeRecipe.episodes) return;
-    const curTime = activeVideo.currentTime;
+  function checkPlaybackTime(givenTime) {
+    if (!activeRecipe || !activeRecipe.episodes) return;
+    const curTime = typeof givenTime === "number" ? givenTime : (activeVideo?.currentTime || netflixCurrentTime || 0);
 
     updateHud(curTime);
 
@@ -190,11 +246,11 @@
       const ep = activeRecipe.episodes[i];
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger break if video reaches within 0.3s of episode cut timestamp
-      if (Math.abs(curTime - endSec) < 0.35 || (curTime >= endSec && curTime < endSec + 1.5)) {
+      // Trigger break if video reaches within 0.5s of episode cut timestamp
+      if (Math.abs(curTime - endSec) < 0.5 || (curTime >= endSec && curTime < endSec + 1.5)) {
         if (!triggeredEpisodeBreaks.has(ep.episode_number)) {
           triggeredEpisodeBreaks.add(ep.episode_number);
-          activeVideo.pause();
+          pauseVideo();
           const nextEp = activeRecipe.episodes[i + 1] || null;
           showEpisodeBreakModal(ep, nextEp);
           break;
@@ -205,13 +261,12 @@
 
   // Attach controller to video element
   function attachVideo(video) {
-    if (activeVideo === video) return;
+    if (!video || activeVideo === video) return;
     activeVideo = video;
-    console.log("[EOC] Hooked HTMLMediaElement video player:", video);
+    console.log("[EOC] Hooked video element:", video);
 
-    video.addEventListener("timeupdate", checkPlaybackTime);
+    video.addEventListener("timeupdate", () => checkPlaybackTime());
     video.addEventListener("seeking", () => {
-      // Re-evaluate breaks when user manually seeks
       const cur = video.currentTime;
       if (activeRecipe?.episodes) {
         triggeredEpisodeBreaks.clear();
@@ -241,7 +296,17 @@
     });
   }
 
-  // Listen for extension messages
+  // Listen for messages from Netflix MAIN-world bridge
+  window.addEventListener("message", (event) => {
+    if (event.source !== window || !event.data || event.data.source !== "EOC_NETFLIX_BRIDGE") return;
+    if (event.data.action === "STATUS_UPDATE") {
+      netflixPlayerActive = true;
+      netflixCurrentTime = event.data.currentTimeSec;
+      checkPlaybackTime(netflixCurrentTime);
+    }
+  });
+
+  // Listen for extension popup / background messages
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "SET_RECIPE") {
       activeRecipe = msg.recipe;
@@ -251,22 +316,32 @@
       sendResponse({ status: "ok", title: activeRecipe.meta?.title });
       return true;
     } else if (msg.action === "JUMP_TO_EPISODE") {
-      if (activeVideo && activeRecipe) {
+      if (!activeVideo) {
+        const v = findVideoElement();
+        if (v) attachVideo(v);
+      }
+      if (activeRecipe) {
         const ep = activeRecipe.episodes.find((e) => e.episode_number === msg.episode_number);
         if (ep) {
           const targetSec = timestampToSeconds(ep.start_time);
-          activeVideo.currentTime = targetSec + 0.1;
-          ignoreCutUntil = activeVideo.currentTime + 3.0;
-          activeVideo.play();
+          seekVideo(targetSec);
+          ignoreCutUntil = targetSec + 3.0;
           hideOverlay();
           sendResponse({ status: "ok", time: targetSec });
           return true;
         }
       }
+      sendResponse({ status: "error", message: "No active recipe or episode found" });
+      return true;
     } else if (msg.action === "GET_STATUS") {
+      if (!activeVideo) {
+        const v = findVideoElement();
+        if (v) attachVideo(v);
+      }
+      const isPlayerReady = !!activeVideo || netflixPlayerActive;
       sendResponse({
-        hasVideo: !!activeVideo,
-        currentTime: activeVideo ? activeVideo.currentTime : 0,
+        hasVideo: isPlayerReady,
+        currentTime: activeVideo ? activeVideo.currentTime : netflixCurrentTime,
         recipeTitle: activeRecipe?.meta?.title || null,
         episodesCount: activeRecipe?.episodes?.length || 0,
       });

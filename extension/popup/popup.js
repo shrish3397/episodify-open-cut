@@ -182,9 +182,11 @@ function checkActiveTabStatus(statusEl) {
         if (!chrome.runtime.lastError && res?.hasVideo) {
           statusEl.classList.add("connected");
           statusEl.querySelector(".status-text").textContent = "Player Active";
+          statusEl.title = "Connected to active video player!";
         } else {
           statusEl.classList.remove("connected");
-          statusEl.querySelector(".status-text").textContent = "Ready";
+          statusEl.querySelector(".status-text").textContent = "No Video Playing";
+          statusEl.title = "Open and play a movie on Netflix, YouTube, or the demo player to connect.";
         }
       });
     }

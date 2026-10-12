@@ -29,6 +29,14 @@
   "content_scripts": [
     {
       "matches": [
+        "*://*.netflix.com/*"
+      ],
+      "js": ["netflix-bridge.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
         "*://*.netflix.com/*",
         "*://*.primevideo.com/*",
         "*://*.amazon.com/*",
