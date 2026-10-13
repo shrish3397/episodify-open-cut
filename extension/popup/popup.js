@@ -1,5 +1,13 @@
-// Episodify Open Cut - Popup Logic
+// Episodify Open Cut - Popup Logic with Open Registry Sync & Curator Publishing
 
+const REGISTRY_INDEX_URL =
+  "https://raw.githubusercontent.com/episodify/episodify-open-cut/main/recipes/index.json";
+const CDN_RECIPE_BASE =
+  "https://raw.githubusercontent.com/episodify/episodify-open-cut/main/recipes/";
+const GITHUB_SUBMIT_BASE =
+  "https://github.com/episodify/episodify-open-cut/new/main/recipes";
+
+// Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
   bethlehem: {
     $schema: "https://episodify.org/schema/v1.json",
@@ -70,6 +78,8 @@ const BUILTIN_RECIPES = {
 };
 
 let currentRecipe = BUILTIN_RECIPES.bethlehem;
+let onlineRegistry = [];
+let pendingPublishData = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   const movieSelect = document.getElementById("movie-select");
@@ -89,15 +99,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  movieSelect.addEventListener("change", (e) => {
+  // Sync with online Open Registry
+  syncOpenRegistry(movieSelect);
+
+  // Movie dropdown selection
+  movieSelect.addEventListener("change", async (e) => {
     const val = e.target.value;
     if (val === "custom") {
       fileInput.click();
+    } else if (val.startsWith("registry:")) {
+      const fileName = val.replace("registry:", "");
+      await loadRecipeFromRegistry(fileName);
     } else if (BUILTIN_RECIPES[val]) {
       applyRecipe(BUILTIN_RECIPES[val]);
     }
   });
 
+  // Local file loading
   fileInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -117,7 +135,70 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     reader.readAsText(file);
   });
+
+  // Setup Curator Publishing Modal
+  setupCuratorModal();
 });
+
+// Synchronize recipes with the decentralized Open Registry
+async function syncOpenRegistry(selectEl) {
+  const registryTag = document.getElementById("registry-tag");
+  try {
+    const resp = await fetch(REGISTRY_INDEX_URL, { cache: "no-cache" });
+    if (!resp.ok) throw new Error("Network response not ok");
+    const data = await resp.json();
+    onlineRegistry = data.registry || [];
+
+    if (registryTag) {
+      registryTag.textContent = `🌐 Registry: ${onlineRegistry.length} Cuts`;
+    }
+
+    // Populate dropdown with any newly published community recipes
+    onlineRegistry.forEach((item) => {
+      const val = `registry:${item.recipe_file}`;
+      // Check if already in options
+      const exists = Array.from(selectEl.options).some(
+        (opt) => opt.value === val || opt.text.includes(item.title)
+      );
+      if (!exists) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = `🌐 ${item.title} (${item.year}) - ${item.total_episodes} Eps`;
+        selectEl.insertBefore(opt, selectEl.lastElementChild);
+      }
+    });
+  } catch (err) {
+    console.log("[EOC] Offline mode: using bundled registry.", err.message);
+    if (registryTag) {
+      registryTag.textContent = `💾 Offline Registry`;
+    }
+  }
+}
+
+// Fetch a community recipe by filename over CDN
+async function loadRecipeFromRegistry(recipeFileName) {
+  try {
+    const cacheKey = `recipe_${recipeFileName}`;
+    const cached = await chrome.storage.local.get([cacheKey]);
+    if (cached[cacheKey]) {
+      applyRecipe(cached[cacheKey]);
+      return;
+    }
+
+    const resp = await fetch(CDN_RECIPE_BASE + recipeFileName);
+    if (!resp.ok) throw new Error("Could not download recipe file");
+    const recipe = await resp.json();
+
+    // Cache locally
+    const saveObj = {};
+    saveObj[cacheKey] = recipe;
+    chrome.storage.local.set(saveObj);
+
+    applyRecipe(recipe);
+  } catch (err) {
+    alert("Failed to load community recipe from Open Registry: " + err.message);
+  }
+}
 
 function applyRecipe(recipe) {
   currentRecipe = recipe;
@@ -127,7 +208,7 @@ function applyRecipe(recipe) {
   // Send to active tab
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "SET_RECIPE", recipe: recipe }, (res) => {
+      chrome.tabs.sendMessage(tabs[0].id, { action: "SET_RECIPE", recipe: recipe }, () => {
         if (chrome.runtime.lastError) {
           // Tab does not have content script running
         }
@@ -186,11 +267,13 @@ function jumpToEpisode(epNum) {
   });
 }
 
+// Auto-detect movie from page URL or title across built-in & online registry
 function autoDetectMovie(url = "", title = "") {
   const combined = (url + " " + title).toLowerCase();
   const movieSelect = document.getElementById("movie-select");
-  if (!movieSelect) return;
+  if (!movieSelect || movieSelect.value === "custom") return;
 
+  // 1. Check built-in recipes
   let matchedKey = null;
   if (combined.includes("bethlehem")) matchedKey = "bethlehem";
   else if (combined.includes("batman")) matchedKey = "the-batman";
@@ -202,7 +285,21 @@ function autoDetectMovie(url = "", title = "") {
   if (matchedKey && BUILTIN_RECIPES[matchedKey]) {
     movieSelect.value = matchedKey;
     applyRecipe(BUILTIN_RECIPES[matchedKey]);
-    console.log("[EOC] Auto-detected movie cut:", matchedKey);
+    console.log("[EOC] Auto-detected built-in cut:", matchedKey);
+    return;
+  }
+
+  // 2. Check online registry
+  for (const entry of onlineRegistry) {
+    const entrySlug = entry.title.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const cleanCombined = combined.replace(/[^a-z0-9]/g, "");
+    if (cleanCombined.includes(entrySlug)) {
+      const val = `registry:${entry.recipe_file}`;
+      movieSelect.value = val;
+      loadRecipeFromRegistry(entry.recipe_file);
+      console.log("[EOC] Auto-detected community registry cut:", entry.title);
+      return;
+    }
   }
 }
 
@@ -225,5 +322,80 @@ function checkActiveTabStatus(statusEl) {
         }
       });
     }
+  });
+}
+
+// Curator Modal setup
+function setupCuratorModal() {
+  const modal = document.getElementById("curate-modal");
+  const openBtn = document.getElementById("open-curate-btn");
+  const closeBtn = document.getElementById("close-modal-btn");
+  const selectFileBtn = document.getElementById("select-publish-file-btn");
+  const publishFileInput = document.getElementById("publish-file-input");
+  const previewBox = document.getElementById("publish-preview");
+  const previewTitle = document.getElementById("preview-film-title");
+  const previewMeta = document.getElementById("preview-film-meta");
+  const submitGithubBtn = document.getElementById("submit-to-github-btn");
+
+  if (!modal || !openBtn) return;
+
+  openBtn.addEventListener("click", () => {
+    modal.style.display = "flex";
+  });
+
+  closeBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+
+  selectFileBtn.addEventListener("click", () => {
+    publishFileInput.click();
+  });
+
+  publishFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const content = evt.target.result;
+        const parsed = JSON.parse(content);
+        if (!parsed.meta || !parsed.episodes) {
+          throw new Error("Missing required 'meta' or 'episodes' keys in recipe.");
+        }
+
+        const title = parsed.meta.title || "Unknown Film";
+        const year = parsed.meta.year || "";
+        const eps = parsed.total_episodes || parsed.episodes.length;
+
+        previewTitle.textContent = `🎬 ${title} (${year})`;
+        previewMeta.textContent = `${eps} Episodes &bull; Runtime: ${Math.round((parsed.meta.runtime_seconds || 0) / 60)} mins`;
+        previewBox.style.display = "block";
+        submitGithubBtn.style.display = "block";
+
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const targetFileName = `${slug}-${year}.eoc.json`;
+
+        pendingPublishData = {
+          fileName: targetFileName,
+          content: content,
+        };
+      } catch (err) {
+        alert("Invalid recipe: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  submitGithubBtn.addEventListener("click", () => {
+    if (!pendingPublishData) return;
+
+    // Use GitHub's web file creation endpoint with pre-filled content!
+    const targetUrl = `${GITHUB_SUBMIT_BASE}?filename=${encodeURIComponent(
+      pendingPublishData.fileName
+    )}&value=${encodeURIComponent(pendingPublishData.content)}`;
+
+    chrome.tabs.create({ url: targetUrl });
+    modal.style.display = "none";
   });
 }

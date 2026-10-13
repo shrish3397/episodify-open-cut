@@ -48,6 +48,16 @@
       "total_episodes": 4,
       "recipe_file": "the-godfather-1972.eoc.json",
       "pacing": "prestige_drama"
+    },
+    {
+      "imdb_id": "tt15398776",
+      "title": "Oppenheimer",
+      "year": 2023,
+      "director": "Christopher Nolan",
+      "runtime_seconds": 10800,
+      "total_episodes": 4,
+      "recipe_file": "oppenheimer-2023.eoc.json",
+      "pacing": "prestige_drama"
     }
   ]
 }

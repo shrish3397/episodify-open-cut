@@ -26,7 +26,9 @@
     "*://*.youtube.com/*",
     "*://localhost/*",
     "*://127.0.0.1/*",
-    "file:///*"
+    "file:///*",
+    "https://raw.githubusercontent.com/*",
+    "https://cdn.jsdelivr.net/*"
   ],
   "background": {
     "service_worker": "background.js"

@@ -20,7 +20,10 @@
     </header>
 
     <section class="section">
-      <label class="section-label" for="movie-select">Select Movie Cut</label>
+      <div class="section-title-row">
+        <label class="section-label" for="movie-select">Select Movie Cut</label>
+        <span class="registry-tag" id="registry-tag">🌐 Open Registry</span>
+      </div>
       <div class="select-wrapper">
         <select id="movie-select" class="movie-select">
           <option value="auto">✨ Auto-Detect from Player</option>
@@ -30,7 +33,7 @@
           <option value="endgame">Avengers: Endgame (2019) - 4 Episodes</option>
           <option value="godfather">The Godfather (1972) - 4 Episodes</option>
           <option value="oppenheimer">Oppenheimer (2023) - 4 Episodes</option>
-          <option value="custom">📁 Load Custom .eoc.json File...</option>
+          <option value="custom">📁 Load Local .eoc.json File...</option>
         </select>
       </div>
 
@@ -58,8 +61,41 @@
     </section>
 
     <footer class="footer">
-      <span>Zero-DRM Metadata Protocol &bull; AGPL-3.0</span>
+      <div class="footer-actions">
+        <button id="open-curate-btn" class="footer-btn">
+          📤 Publish a Cut to Registry
+        </button>
+      </div>
+      <div class="footer-sub">Zero-DRM Community Protocol &bull; AGPL-3.0</div>
     </footer>
+  </div>
+
+  <!-- Curator Submission Modal -->
+  <div id="curate-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Publish Cut to Open Registry</h3>
+        <button id="close-modal-btn" class="modal-close">&times;</button>
+      </div>
+      <p class="modal-desc">
+        Analyzed a movie? Upload your <code>.eoc.json</code> recipe so millions of Episodify users can stream it as a miniseries worldwide.
+      </p>
+
+      <button id="select-publish-file-btn" class="modal-action-btn modal-action-btn-secondary">
+        📁 Select .eoc.json Recipe to Publish
+      </button>
+      <input type="file" id="publish-file-input" accept=".json,.eoc.json" style="display: none;">
+
+      <div id="publish-preview" class="publish-preview" style="display: none;">
+        <div id="preview-film-title" class="preview-title"></div>
+        <div id="preview-film-meta" class="preview-meta"></div>
+        <div class="preview-status">✅ Schema Verified & Ready for Registry</div>
+      </div>
+
+      <button id="submit-to-github-btn" class="modal-action-btn modal-action-btn-primary" style="display: none;">
+        🚀 Submit Pull Request to Registry
+      </button>
+    </div>
   </div>
 
   <script src="popup.js"></script>
