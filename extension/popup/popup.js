@@ -133,11 +133,25 @@ document.addEventListener("DOMContentLoaded", () => {
   checkActiveTabStatus(playerStatus);
 
   // Restore stored active recipe or default
-  chrome.storage.local.get(["active_recipe"], (res) => {
-    if (res.active_recipe) {
-      currentRecipe = res.active_recipe;
-      updateUI();
+  chrome.storage.local.get(["active_recipe", "selected_recipe_key"], (res) => {
+    const selectedKey = res.selected_recipe_key || movieSelect.value || "bethlehem-8ep";
+    
+    // If the selected key is a built-in recipe, always use the fresh built-in definition
+    if (BUILTIN_RECIPES[selectedKey]) {
+      currentRecipe = BUILTIN_RECIPES[selectedKey];
+      movieSelect.value = selectedKey;
+      applyRecipe(currentRecipe);
+    } else if (res.active_recipe && res.active_recipe.episodes) {
+      if (movieSelect.value === "bethlehem-8ep" && res.active_recipe.total_episodes !== 8) {
+        currentRecipe = BUILTIN_RECIPES["bethlehem-8ep"];
+        applyRecipe(currentRecipe);
+      } else {
+        currentRecipe = res.active_recipe;
+        updateUI();
+      }
     } else {
+      currentRecipe = BUILTIN_RECIPES["bethlehem-8ep"];
+      movieSelect.value = "bethlehem-8ep";
       applyRecipe(currentRecipe);
     }
   });
@@ -148,6 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Movie dropdown selection
   movieSelect.addEventListener("change", async (e) => {
     const val = e.target.value;
+    chrome.storage.local.set({ selected_recipe_key: val });
     if (val === "custom") {
       fileInput.click();
     } else if (val.startsWith("registry:")) {
