@@ -15,6 +15,17 @@
     },
     {
       "imdb_id": "tt31846512",
+      "title": "Bethlehem Kudumba Unit (6-Episode Cut)",
+      "year": 2026,
+      "director": "Girish A.D.",
+      "producers": "Bhavana Studios",
+      "runtime_seconds": 9313,
+      "total_episodes": 6,
+      "recipe_file": "bethlehem-kudumba-unit-6ep.eoc.json",
+      "pacing": "comedy"
+    },
+    {
+      "imdb_id": "tt31846512",
       "title": "Bethlehem Kudumba Unit (4-Episode Cut)",
       "year": 2026,
       "director": "Girish A.D.",

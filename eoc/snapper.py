@@ -306,7 +306,44 @@ def snap_to_micro_break(
     for gap_start, gap_end, duration, prev_c, next_c in candidates:
         midpoint = (gap_start + gap_end) / 2.0
         distance = abs(midpoint - target_seconds)
-        score = min(duration, 5.0) * 2.0 - (distance * 0.15)
+
+        # Base duration score (rewarding substantial scene transitions up to 6.0s)
+        eff_dur = min(duration, 6.0)
+        if eff_dur >= 4.0:
+            base_score = 12.0 + (eff_dur - 4.0) * 1.5
+        elif eff_dur >= 2.5:
+            base_score = 8.0 + (eff_dur - 2.5) * 2.0
+        elif eff_dur >= 1.5:
+            base_score = 4.0 + (eff_dur - 1.5) * 1.5
+        else:
+            base_score = max(0.0, eff_dur * 2.0)
+
+        # Grammatical & scene boundary indicators
+        text_bonus = 0.0
+        if prev_c and prev_c.text:
+            stripped = prev_c.text.strip()
+            # Full sentence terminal punctuation
+            if stripped.endswith((".", "!", "?", '"', "'", "”", "’", "]", ")")):
+                text_bonus += 3.0
+            # Incomplete sentence or trailing comma (unresolved mid-scene dialogue)
+            elif stripped.endswith((",", ";", "--", "—", "...")):
+                text_bonus -= 6.0
+
+            # Subtitle audio/music description like [Music], [Sighs]
+            if stripped.startswith("[") and stripped.endswith("]"):
+                text_bonus += 4.0
+
+        if next_c and next_c.text:
+            next_stripped = next_c.text.strip()
+            if next_stripped and (next_stripped[0].isupper() or next_stripped[0] in ('"', '[', '(', '“')):
+                text_bonus += 2.0
+            elif next_stripped and next_stripped[0].islower():
+                text_bonus -= 8.0
+
+        # Distance penalty: penalize deviation from target
+        dist_penalty = distance * 0.15
+        score = base_score + text_bonus - dist_penalty
+
         if score > best_score:
             best_score = score
             best_gap = (gap_start, gap_end, duration, prev_c, next_c)

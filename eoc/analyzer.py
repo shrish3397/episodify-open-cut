@@ -30,16 +30,17 @@ SYSTEM_INSTRUCTION = """You are an award-winning film editor, television showrun
 Your task is to transform a feature-length film screenplay/subtitles into a bingeable prestige miniseries.
 
 STRICT CONSTRAINTS & RULES:
-1. Exact Scene Transitions: Episode target_end_time MUST occur at an EXACT SCENE TRANSITION (e.g., location change, time jump, sequence resolution, or fade to black).
-2. Silence & Dialogue Integrity: DO NOT cut in the middle of an active scene or ongoing conversation. Verify that dialogue has completely stopped before setting the target_end_time timestamp.
-3. Savor the story: Slices must occur at natural narrative act breaks, suspense climaxes, or compelling cliffhangers.
-4. Target episode runtimes: 25 to 45 minutes each.
-5. Every episode must have:
+1. Complete Scene & Story-Arc Transitions: Every episode cut (target_end_time) MUST occur STRICTLY AFTER a complete scene or dramatic story arc has concluded (e.g., character departures, sequence resolutions, location shifts, time jumps, or fades to black).
+2. NEVER Cut Mid-Scene: Do NOT cut in the middle of an active scene or ongoing conversation. Subtitles/dialogue must have fully completed with a natural silence or music lull before the cut.
+3. Flexible Episode Count: You can structure the miniseries into ANY requested number of episodes (e.g., 3, 4, 5, 6, 8, 10, etc.). Each episode must stand on its own as a meaningful chapter with a clear beginning, middle, and narrative punchline/cliffhanger.
+4. Dramatic Act Milestones: Align cuts with major story milestones (Inciting Incident, First Act Turn, Midpoint Reversal, Crisis Point, Climax, Resolution).
+5. Output Format:
+   For every episode, provide:
    - episode_number (integer, 1-indexed)
    - title (evocative, cinematic episode title)
-   - target_end_time (timestamp in "HH:MM:SS" format where the episode concludes)
+   - target_end_time (timestamp in "HH:MM:SS" format where the episode concludes after the scene)
    - cliffhanger_rating (float 1.0 to 10.0 indicating suspense level)
-   - break_rationale (1-2 sentences on why this moment is the ideal episodic boundary)
+   - break_rationale (1-2 sentences explaining why this moment marks the completion of the scene or story arc)
    - recap_text (2-3 sentences summarizing this episode's key developments for "Previously on...")
    - teaser_next (1-2 sentences teasing the upcoming episode)
 
@@ -128,10 +129,19 @@ class HeuristicAnalyzer:
         curr_start = 0.0
         for ep_idx in range(1, target_episodes + 1):
             if ep_idx < target_episodes:
-                raw_target = raw_cuts[ep_idx - 1]
+                remaining_time = total_time - curr_start
+                remaining_episodes = target_episodes - ep_idx + 1
+                target_episode_length = remaining_time / remaining_episodes
+                raw_target = curr_start + target_episode_length
+
+                # Wide search window to locate complete scene transitions rather than mid-scene pauses
+                search_win = max(60.0, min(180.0, target_episode_length * 0.35))
+
                 snap = snap_to_micro_break(
                     cues,
                     raw_target,
+                    window_seconds=search_win,
+                    min_gap_seconds=1.5,
                     constraint=constraint,
                     video_path=video_path,
                     visual_scene_cuts=visual_scene_cuts,
@@ -140,9 +150,14 @@ class HeuristicAnalyzer:
             else:
                 end_sec = total_time
 
-            default_title, default_rationale, default_rating = thematic_names[
-                (ep_idx - 1) % len(thematic_names)
-            ]
+            if ep_idx == target_episodes:
+                default_title = "The Concluding Reckoning"
+                default_rationale = "The grand finale brings the full narrative arc and storylines to their complete resolution."
+                default_rating = 8.8
+            else:
+                default_title, default_rationale, default_rating = thematic_names[
+                    (ep_idx - 1) % len(thematic_names)
+                ]
             ep_title = f"{title}: Part {ep_idx} - {default_title}"
 
             episodes_data.append(

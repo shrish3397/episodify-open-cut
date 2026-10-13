@@ -52,6 +52,26 @@ const BUILTIN_RECIPES = {
       { episode_number: 8, title: "Part 8: Harmonies of Bethlehem", start_time: "02:15:48", end_time: "02:35:13", cliffhanger_rating: 8.0, break_rationale: "Grand finale: the full choir harmonizes at the ceremony, reuniting Ashley and Justin in triumph.", recap_text: "Ashley and Justin reunite in a joyful, musical celebration at the parish hall.", teaser_next: "Series finale concludes the 8-episode miniseries cut of Bethlehem Kudumba Unit!" }
     ]
   },
+  "bethlehem-6ep": {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "Bethlehem Kudumba Unit (6-Episode Cut)",
+      year: 2026,
+      runtime_seconds: 9313,
+      imdb_id: "tt31846512",
+      pacing: "comedy",
+      generator: "eoc-core"
+    },
+    total_episodes: 6,
+    episodes: [
+      { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: "00:25:52", cliffhanger_rating: 8.5, break_rationale: "Ashley relocates to Angamaly; her first choir session with Justin sparks immediate neighborhood interest.", recap_text: "Following financial distress in Mundakkayam, Ashley arrives in Angamaly and joins the parish prayer unit.", teaser_next: "Secret late-night choir rehearsals begin to raise suspicions among watchful elders." },
+      { episode_number: 2, title: "Part 2: Rhythms & Rumors", start_time: "00:25:52", end_time: "00:51:44", cliffhanger_rating: 8.9, break_rationale: "Justin and Ashley bond over music across Angamaly; romantic sparks fly during late-night scooter rides.", recap_text: "Banter and music rehearsals blossom into a secret romance despite watchful neighbors.", teaser_next: "The grand parish feast arrives as family tensions escalate." },
+      { episode_number: 3, title: "Part 3: The Parish Feast", start_time: "00:51:44", end_time: "01:17:36", cliffhanger_rating: 9.4, break_rationale: "Justin confesses his genuine feelings before the feast performance just as neighborhood rumors peak.", recap_text: "Their triumphant choir performance captivates the church, but family scrutiny reaches a boiling point.", teaser_next: "An unexpected letter from Dublin arrives, threatening to alter Ashley's future." },
+      { episode_number: 4, title: "Part 4: The Ireland Dilemma", start_time: "01:17:36", end_time: "01:43:28", cliffhanger_rating: 9.6, break_rationale: "Ashley receives her student visa for Ireland; emotional midnight farewell at the airport gate.", recap_text: "Torn between her Dublin dreams and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Eighteen months pass in Ireland before a parish wedding brings Ashley back to Kerala." },
+      { episode_number: 5, title: "Part 5: Return to Angamaly", start_time: "01:43:28", end_time: "02:09:20", cliffhanger_rating: 9.2, break_rationale: "Ashley returns to Kerala for the wedding, discovering Justin waiting across the church courtyard.", recap_text: "Returning after 18 months in Dublin, Ashley confronts unspoken feelings and past memories.", teaser_next: "The wedding ceremony begins as Ashley and Justin take center stage." },
+      { episode_number: 6, title: "Part 6: Harmonies of Bethlehem", start_time: "02:09:20", end_time: "02:35:13", cliffhanger_rating: 8.2, break_rationale: "Joyful choir wedding finale brings Ashley and Justin's romance to a triumphant conclusion.", recap_text: "Ashley and Justin reunite in a joyful musical celebration at the parish hall.", teaser_next: "Series finale concludes the 6-episode miniseries cut of Bethlehem Kudumba Unit!" }
+    ]
+  },
   "bethlehem-4ep": {
     $schema: "https://episodify.org/schema/v1.json",
     meta: { title: "Bethlehem Kudumba Unit (4-Episode Cut)", year: 2026, runtime_seconds: 9313, imdb_id: "tt31846512", pacing: "comedy" },

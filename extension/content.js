@@ -10,6 +10,8 @@
   let overlayContainer = null;
   let hudBar = null;
   let ignoreCutUntil = 0;
+  let isBreakModalActive = false;
+  let pauseEnforcementInterval = null;
 
   // Netflix-specific bridge state
   let netflixPlayerActive = false;
@@ -60,19 +62,112 @@
     }
   }
 
-  function pauseVideo() {
+  function pauseVideo(clampSec) {
+    console.log("[EOC] pauseVideo() invoked. Halting OTT playback pipeline...");
+
+    // 1. Netflix bridge message
     if (location.hostname.includes("netflix.com")) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
     }
+
     const v = activeVideo || findVideoElement();
+
+    // 2. Direct HTML5 video pause & optional clamp
     if (v) {
       try {
         v.pause();
-      } catch (e) {}
+        if (typeof clampSec === "number") {
+          v.currentTime = clampSec;
+        }
+      } catch (e) {
+        console.warn("[EOC] Direct video pause warning:", e);
+      }
     }
+
+    // 3. Dispatch Spacebar and 'k' keyboard events to player, document, and window
+    // (Crucial for Hotstar, YouTube, Prime Video whose player controllers listen to keyboard events)
+    try {
+      const keyEvents = [
+        { key: " ", code: "Space", keyCode: 32, which: 32 },
+        { key: "k", code: "KeyK", keyCode: 75, which: 75 },
+      ];
+      const targets = [
+        v,
+        v?.parentElement,
+        document.activeElement,
+        document.querySelector(".shaka-video-container, .player-container, [data-testid*='player'], .video-player"),
+        document.body,
+        document,
+        window,
+      ].filter(Boolean);
+
+      keyEvents.forEach(({ key, code, keyCode, which }) => {
+        targets.forEach((target) => {
+          try {
+            target.dispatchEvent(new KeyboardEvent("keydown", {
+              key, code, keyCode, which, bubbles: true, cancelable: true, composed: true
+            }));
+            target.dispatchEvent(new KeyboardEvent("keyup", {
+              key, code, keyCode, which, bubbles: true, cancelable: true, composed: true
+            }));
+          } catch (e) {}
+        });
+      });
+    } catch (err) {
+      console.warn("[EOC] Keyboard pause dispatch warning:", err);
+    }
+
+    // 4. Click native OTT player pause button if currently visible in DOM
+    try {
+      const pauseSelectors = [
+        'button[aria-label="Pause"]',
+        'button[aria-label="Pause (k)"]',
+        'button[aria-label*="Pause" i]',
+        'button[title*="Pause" i]',
+        '[data-testid="player-pause-button"]',
+        'button[data-testid*="pause" i]',
+        'button.play-pause-btn',
+        '.shaka-controls-button-info[aria-label*="pause" i]',
+        'button.control-btn[aria-label*="pause" i]',
+      ];
+      for (const sel of pauseSelectors) {
+        const btn = document.querySelector(sel);
+        if (btn) {
+          btn.click();
+          console.log("[EOC] Clicked native OTT pause button:", sel);
+          break;
+        }
+      }
+    } catch (btnErr) {
+      console.warn("[EOC] Native pause button click warning:", btnErr);
+    }
+
+    // 5. Active enforcement loop: Hotstar's player manager may attempt auto-resume on DOM pause.
+    // Lock the pause state while the episode break modal remains open.
+    if (pauseEnforcementInterval) clearInterval(pauseEnforcementInterval);
+    let enforceTicks = 0;
+    pauseEnforcementInterval = setInterval(() => {
+      enforceTicks++;
+      const curVid = activeVideo || findVideoElement();
+      if (curVid && !curVid.paused) {
+        try {
+          curVid.pause();
+          console.log("[EOC] Enforced video pause lock.");
+        } catch (e) {}
+      }
+      if (enforceTicks > 20 || !isBreakModalActive) {
+        clearInterval(pauseEnforcementInterval);
+        pauseEnforcementInterval = null;
+      }
+    }, 100);
   }
 
   function playVideo() {
+    isBreakModalActive = false;
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
     if (location.hostname.includes("netflix.com")) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
     }
@@ -86,7 +181,6 @@
 
   // Find video player element in DOM
   function findVideoElement() {
-    // 1. All video elements on page
     const videos = Array.from(document.querySelectorAll("video"));
     if (videos.length === 0) return null;
 
@@ -100,31 +194,46 @@
     }, { video: videos[0], area: 0 }).video;
   }
 
-  // Create or retrieve in-player overlay container
+  function getPlayerContainer() {
+    return document.fullscreenElement ||
+      document.querySelector(".shaka-video-container, .player-container, [data-testid*='player-container'], .video-player") ||
+      document.body;
+  }
+
+  // Create or retrieve in-player overlay container (fullscreen compatible)
   function ensureOverlayContainer() {
-    if (overlayContainer && document.body.contains(overlayContainer)) {
+    const parent = getPlayerContainer();
+    if (overlayContainer && parent.contains(overlayContainer)) {
       return overlayContainer;
+    }
+    if (overlayContainer && overlayContainer.parentNode) {
+      overlayContainer.parentNode.removeChild(overlayContainer);
     }
     overlayContainer = document.createElement("div");
     overlayContainer.id = "eoc-overlay-container";
-    document.body.appendChild(overlayContainer);
+    parent.appendChild(overlayContainer);
     return overlayContainer;
   }
 
-  // Create or retrieve in-player HUD bar
+  // Create or retrieve in-player HUD bar (fullscreen compatible)
   function ensureHudBar() {
-    if (hudBar && document.body.contains(hudBar)) {
+    const parent = getPlayerContainer();
+    if (hudBar && parent.contains(hudBar)) {
       return hudBar;
+    }
+    if (hudBar && hudBar.parentNode) {
+      hudBar.parentNode.removeChild(hudBar);
     }
     hudBar = document.createElement("div");
     hudBar.id = "eoc-hud-bar";
     hudBar.style.display = "none";
-    document.body.appendChild(hudBar);
+    parent.appendChild(hudBar);
     return hudBar;
   }
 
   // Render episode end modal card
   function showEpisodeBreakModal(episode, nextEpisode) {
+    isBreakModalActive = true;
     const container = ensureOverlayContainer();
     const isFinalEpisode = !nextEpisode;
 
@@ -185,6 +294,7 @@
         const targetSec = timestampToSeconds(nextEpisode.start_time);
         seekVideo(targetSec + 0.1);
         ignoreCutUntil = targetSec + 3.0;
+        playVideo();
       }
     });
 
@@ -193,10 +303,16 @@
       hideOverlay();
       triggeredEpisodeBreaks.clear();
       seekVideo(0);
+      playVideo();
     });
   }
 
   function hideOverlay() {
+    isBreakModalActive = false;
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
     if (overlayContainer) {
       overlayContainer.classList.remove("eoc-visible");
       overlayContainer.innerHTML = "";
@@ -291,11 +407,15 @@
       const ep = activeRecipe.episodes[i];
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger break if video reaches within 0.5s of episode cut timestamp
-      if (Math.abs(curTime - endSec) < 0.5 || (curTime >= endSec && curTime < endSec + 1.5)) {
+      // Trigger break if video reaches within 0.4s of episode cut timestamp or within the 120s buffer
+      // (Guarantees that network buffering or timeupdate throttling never skips the episode end)
+      const isPastOrAtEnd = curTime >= (endSec - 0.4) && curTime < (endSec + 120.0);
+
+      if (isPastOrAtEnd) {
         if (!triggeredEpisodeBreaks.has(ep.episode_number)) {
           triggeredEpisodeBreaks.add(ep.episode_number);
-          pauseVideo();
+          console.log(`[EOC] >>> EPISODE ${ep.episode_number} END REACHED at ${secondsToTimestamp(curTime)} (Target: ${ep.end_time})! Pausing playback.`);
+          pauseVideo(endSec);
           const nextEp = activeRecipe.episodes[i + 1] || null;
           showEpisodeBreakModal(ep, nextEp);
           break;
@@ -316,7 +436,8 @@
       if (activeRecipe?.episodes) {
         triggeredEpisodeBreaks.clear();
         activeRecipe.episodes.forEach((ep) => {
-          if (cur > timestampToSeconds(ep.end_time)) {
+          // Only mark as triggered if user explicitly scrubbed well beyond the cut point
+          if (cur > timestampToSeconds(ep.end_time) + 3.0) {
             triggeredEpisodeBreaks.add(ep.episode_number);
           }
         });
@@ -340,13 +461,26 @@
       subtree: true,
     });
 
-    // Periodic safety poll (crucial for SPAs like Hotstar and YouTube)
+    // 1. High-frequency playback polling heartbeat (crucial for SPAs like Hotstar, YouTube, Prime)
     setInterval(() => {
-      const candidate = findVideoElement();
-      if (candidate && candidate !== activeVideo) {
-        attachVideo(candidate);
+      const candidate = activeVideo || findVideoElement();
+      if (candidate) {
+        if (candidate !== activeVideo) attachVideo(candidate);
+        if (!candidate.paused) {
+          checkPlaybackTime(candidate.currentTime);
+        }
       }
-    }, 1000);
+    }, 150);
+
+    // 2. Fullscreen transitions listener
+    document.addEventListener("fullscreenchange", () => {
+      if (overlayContainer && overlayContainer.classList.contains("eoc-visible")) {
+        ensureOverlayContainer();
+      }
+      if (hudBar && hudBar.style.display !== "none") {
+        ensureHudBar();
+      }
+    });
   }
 
   // Listen for messages from Netflix MAIN-world bridge
@@ -434,12 +568,12 @@
     const isBethlehem = url.includes("bethlehem") || url.includes("1271710275") || document.title.toLowerCase().includes("bethlehem");
 
     if (isHotstar && isBethlehem) {
-      // If we don't have an 8-episode recipe, or if the current recipe is still the obsolete 4-ep cut:
-      if (!activeRecipe || activeRecipe.total_episodes !== 8 || activeRecipe.meta?.runtime_seconds === 6956) {
+      // Auto-assign default Bethlehem Kudumba Unit recipe only if none loaded or runtime is obsolete
+      if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 6956) {
         activeRecipe = BUILTIN_HOTSTAR_BETHLEHEM_8EP;
         chrome.storage.local.set({ active_recipe: activeRecipe });
         triggeredEpisodeBreaks.clear();
-        console.log("[EOC] Upgraded active recipe to Bethlehem Kudumba Unit (8-Episode Miniseries Cut)!");
+        console.log("[EOC] Auto-selected default Bethlehem Kudumba Unit recipe!");
       }
     }
   }
