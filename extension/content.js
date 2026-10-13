@@ -350,6 +350,8 @@
         currentTime: activeVideo ? activeVideo.currentTime : netflixCurrentTime,
         recipeTitle: activeRecipe?.meta?.title || null,
         episodesCount: activeRecipe?.episodes?.length || 0,
+        pageTitle: document.title,
+        url: window.location.href,
       });
       return true;
     }

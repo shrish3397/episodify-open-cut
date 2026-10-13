@@ -55,6 +55,17 @@ const BUILTIN_RECIPES = {
       { episode_number: 3, title: "The Tollbooth Ambush", start_time: "01:27:15", end_time: "02:11:50", cliffhanger_rating: 9.5, break_rationale: "Sonny murdered; peace summit called.", recap_text: "Sonny is ambushed at the causeway; Don Vito calls Five Families.", teaser_next: "Michael returns to take command of the family." },
       { episode_number: 4, title: "The Baptism of Fire", start_time: "02:11:50", end_time: "02:55:00", cliffhanger_rating: 9.0, break_rationale: "Baptism montage and door closed on Kay.", recap_text: "Rival bosses eliminated; Michael ascends as Don Corleone.", teaser_next: "Series finale concludes the mafia saga." }
     ]
+  },
+  oppenheimer: {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: { title: "Oppenheimer", year: 2023, runtime_seconds: 10800, imdb_id: "tt15398776", pacing: "prestige_drama" },
+    total_episodes: 4,
+    episodes: [
+      { episode_number: 1, title: "Prometheus Bound", start_time: "00:00:00", end_time: "00:46:18", cliffhanger_rating: 8.5, break_rationale: "Oppenheimer accepts Manhattan Project mandate from General Groves.", recap_text: "J. Robert Oppenheimer navigates quantum physics breakthroughs and joins General Groves.", teaser_next: "A remote desert mesa in New Mexico becomes the focal point." },
+      { episode_number: 2, title: "The Secret City", start_time: "00:46:18", end_time: "01:34:05", cliffhanger_rating: 9.2, break_rationale: "Eve of Trinity test countdown as weather worsens.", recap_text: "Scientists gather at Los Alamos amidst rising logistical hurdles.", teaser_next: "Zero hour arrives in the Jornada del Muerto desert as storm clouds gather." },
+      { episode_number: 3, title: "Trinity", start_time: "01:34:05", end_time: "02:15:30", cliffhanger_rating: 9.8, break_rationale: "Fateful silent detonation shockwave and geopolitical fallout.", recap_text: "The gadget is detonated; Oppenheimer's triumph is replaced by nuclear dread.", teaser_next: "Closed-door security hearing puts Oppenheimer on trial." },
+      { episode_number: 4, title: "The Ruin of Nations", start_time: "02:15:30", end_time: "03:00:00", cliffhanger_rating: 8.9, break_rationale: "Pond conversation with Einstein revealed.", recap_text: "Strauss's machinations collapse during cabinet confirmation.", teaser_next: "Series finale concludes the historical epic." }
+    ]
   }
 };
 
@@ -175,6 +186,26 @@ function jumpToEpisode(epNum) {
   });
 }
 
+function autoDetectMovie(url = "", title = "") {
+  const combined = (url + " " + title).toLowerCase();
+  const movieSelect = document.getElementById("movie-select");
+  if (!movieSelect) return;
+
+  let matchedKey = null;
+  if (combined.includes("bethlehem")) matchedKey = "bethlehem";
+  else if (combined.includes("batman")) matchedKey = "the-batman";
+  else if (combined.includes("dune")) matchedKey = "dune-2";
+  else if (combined.includes("endgame") || combined.includes("avengers")) matchedKey = "endgame";
+  else if (combined.includes("godfather")) matchedKey = "godfather";
+  else if (combined.includes("oppenheimer")) matchedKey = "oppenheimer";
+
+  if (matchedKey && BUILTIN_RECIPES[matchedKey]) {
+    movieSelect.value = matchedKey;
+    applyRecipe(BUILTIN_RECIPES[matchedKey]);
+    console.log("[EOC] Auto-detected movie cut:", matchedKey);
+  }
+}
+
 function checkActiveTabStatus(statusEl) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
@@ -183,10 +214,14 @@ function checkActiveTabStatus(statusEl) {
           statusEl.classList.add("connected");
           statusEl.querySelector(".status-text").textContent = "Player Active";
           statusEl.title = "Connected to active video player!";
+
+          if (res.url || res.pageTitle) {
+            autoDetectMovie(res.url, res.pageTitle);
+          }
         } else {
           statusEl.classList.remove("connected");
           statusEl.querySelector(".status-text").textContent = "No Video Playing";
-          statusEl.title = "Open and play a movie on Netflix, YouTube, or the demo player to connect.";
+          statusEl.title = "Open and play a movie on Hotstar, Netflix, YouTube, or the demo player to connect.";
         }
       });
     }
