@@ -103,14 +103,15 @@
       <span style="color: #8b949e; font-size: 13px;">Current Playback: </span>
       <span class="time-display" id="clock-display">00:00:00</span>
     </div>
-    <div style="display: flex; gap: 8px;">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
       <button class="btn btn-secondary" id="jump-break1-btn">Fast Forward to 5s before Break 1</button>
       <button class="btn" id="simulate-break-btn">Trigger Break Modal Now</button>
+      <button class="btn btn-secondary" id="offline-stream-btn" title="Generate procedural offline test video with zero network">🎨 Offline Canvas Stream</button>
     </div>
   </div>
 
-  <!-- Content script & overlay included directly for offline standalone demo preview -->
-  <script src="../content.js"></script>
+  <!-- Isolated Shadow DOM Content Script Overlay -->
+  <script src="../content/overlay.js"></script>
   <script>
     const video = document.getElementById("demo-video");
     const clock = document.getElementById("clock-display");
@@ -159,11 +160,18 @@
       ]
     };
 
-    // Load demo recipe
-    window.postMessage({ action: "SET_RECIPE", recipe: demoRecipe }, "*");
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ active_recipe: demoRecipe });
+    // Load demo recipe into Shadow DOM Overlay
+    function applyDemoRecipe() {
+      if (window.EpisodifyOverlay) {
+        window.EpisodifyOverlay.setRecipe(demoRecipe);
+      }
+      window.postMessage({ action: "SET_RECIPE", recipe: demoRecipe }, "*");
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        chrome.storage.local.set({ active_recipe: demoRecipe });
+      }
     }
+    applyDemoRecipe();
+    setTimeout(applyDemoRecipe, 200);
 
     video.addEventListener("timeupdate", () => {
       const s = Math.floor(video.currentTime);
@@ -174,12 +182,72 @@
 
     document.getElementById("jump-break1-btn").addEventListener("click", () => {
       video.currentTime = 10;
-      video.play();
+      video.play().catch(() => {});
     });
 
     document.getElementById("simulate-break-btn").addEventListener("click", () => {
-      video.currentTime = 14.8;
-      video.play();
+      video.currentTime = 14;
+      video.play().catch(() => {});
+    });
+
+    // Offline procedural canvas video fallback (100% network-free)
+    function setupOfflineStream() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 960;
+      canvas.height = 540;
+      const ctx = canvas.getContext("2d");
+      let frame = 0;
+
+      function renderFrame() {
+        frame++;
+        const tSec = frame / 30;
+        
+        // Gradient background
+        const g = ctx.createLinearGradient(0, 0, 960, 540);
+        g.addColorStop(0, "#0b0e14");
+        g.addColorStop(1, "#181e2b");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 960, 540);
+
+        // Animated pulse circle
+        const cx = 480 + Math.sin(tSec * 2) * 200;
+        ctx.beginPath();
+        ctx.arc(cx, 270, 40, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(229, 9, 20, 0.4)";
+        ctx.fill();
+
+        // Title
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("EPISODIFY OPEN CUT - OFFLINE TEST STREAM", 480, 240);
+
+        // Timecode
+        const mins = Math.floor(tSec / 60);
+        const secs = Math.floor(tSec % 60);
+        ctx.fillStyle = "#f5c518";
+        ctx.font = "bold 32px monospace";
+        ctx.fillText(`PLAYHEAD: 00:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`, 480, 290);
+
+        requestAnimationFrame(renderFrame);
+      }
+      renderFrame();
+
+      try {
+        const stream = canvas.captureStream(30);
+        video.srcObject = stream;
+        video.play().catch(() => {});
+      } catch (err) {
+        console.warn("Canvas stream error:", err);
+      }
+    }
+
+    document.getElementById("offline-stream-btn").addEventListener("click", setupOfflineStream);
+
+    // Auto-fallback if online BigBuckBunny is blocked or fails
+    video.addEventListener("error", () => {
+      console.log("[EOC Demo] Remote clip failed to load, switching to offline procedural canvas stream.");
+      setupOfflineStream();
     });
   </script>
 </body>

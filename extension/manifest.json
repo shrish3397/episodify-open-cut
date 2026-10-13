@@ -60,14 +60,13 @@
         "*://127.0.0.1/*",
         "file:///*"
       ],
-      "js": ["content.js"],
-      "css": ["overlay.css"],
+      "js": ["content/overlay.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["overlay.css"],
+      "resources": ["content/overlay.js", "overlay.css"],
       "matches": ["<all_urls>"]
     }
   ]

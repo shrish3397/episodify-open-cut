@@ -1,0 +1,814 @@
+/**
+ * Episodify Open Cut - Stealth In-Player Overlay
+ * 
+ * Engineering Principles:
+ * 1. Absolute Style Isolation: Closed/Open Shadow DOM container. Zero CSS leak into/from OTT platforms.
+ * 2. Interoperability: Direct standard HTML5 <video> API listeners. Platform-agnostic.
+ * 3. 1Hz Throttled Execution: Math.floor(video.currentTime) deduplication prevents 60fps micro-stutters.
+ * 4. Classy Stealth UI: Dark glassmorphism, synchronized auto-hide HUD, non-intrusive floating cards.
+ */
+
+(function () {
+  "use strict";
+
+  // State management
+  let activeVideo = null;
+  let activeRecipe = null;
+  let hostElement = null;
+  let shadowRoot = null;
+  let cardElement = null;
+  let hudElement = null;
+  let lastCheckedSec = -1;
+  let isBreakActive = false;
+  let ignoreCutUntil = 0;
+  let triggeredEpisodeBreaks = new Set();
+  let hudHideTimer = null;
+  let pauseEnforcementInterval = null;
+
+  // Time conversion helpers
+  function timestampToSeconds(ts) {
+    if (typeof ts === "number") return ts;
+    const parts = String(ts).trim().replace(",", ".").split(":");
+    if (parts.length === 3) {
+      return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+    } else if (parts.length === 2) {
+      return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+    }
+    return parseFloat(ts) || 0;
+  }
+
+  function secondsToTimestamp(sec) {
+    if (sec < 0) sec = 0;
+    const totalSecs = Math.floor(sec);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
+  // Shadow DOM Styles: 100% isolated glassmorphism
+  const SHADOW_STYLES = `
+    :host {
+      all: initial;
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2147483647;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+      box-sizing: border-box;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Backdrop Dimmer for Episode Break */
+    .eoc-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 15, 0.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 1000;
+    }
+
+    .eoc-backdrop.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Classy Floating Break Card */
+    .eoc-break-card {
+      position: relative;
+      max-width: 680px;
+      width: 100%;
+      background: linear-gradient(135deg, rgba(22, 25, 35, 0.94), rgba(14, 16, 24, 0.96));
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 18px;
+      padding: 32px 36px;
+      color: #f3f4f6;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(229, 9, 20, 0.15);
+      transform: translateY(24px) scale(0.97);
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: auto;
+    }
+
+    .eoc-backdrop.visible .eoc-break-card {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .eoc-badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+
+    .eoc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eoc-badge-act {
+      background: rgba(229, 9, 20, 0.2);
+      color: #ff4d58;
+      border: 1px solid rgba(229, 9, 20, 0.4);
+    }
+
+    .eoc-badge-cliffhanger {
+      background: rgba(245, 197, 24, 0.16);
+      color: #f5c518;
+      border: 1px solid rgba(245, 197, 24, 0.35);
+    }
+
+    .eoc-card-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+
+    .eoc-card-meta {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 22px;
+    }
+
+    .eoc-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 26px;
+    }
+
+    @media (max-width: 600px) {
+      .eoc-panels {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .eoc-panel {
+      background: rgba(10, 12, 18, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .eoc-panel-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .eoc-panel-text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #e5e7eb;
+    }
+
+    .eoc-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .eoc-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .eoc-btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f3f4f6;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .eoc-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .eoc-btn-primary {
+      background: #e50914;
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(229, 9, 20, 0.4);
+    }
+
+    .eoc-btn-primary:hover {
+      background: #ff2a36;
+      transform: translateY(-1px);
+    }
+
+    /* Stealth Synchronized Floating HUD */
+    .eoc-hud-pill {
+      position: fixed;
+      bottom: 76px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      background: rgba(14, 16, 24, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 30px;
+      padding: 7px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+      z-index: 500;
+      opacity: 1;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .eoc-hud-pill.hidden {
+      opacity: 0;
+      transform: translateX(-50%) translateY(14px);
+      pointer-events: none;
+    }
+
+    .eoc-hud-title {
+      font-weight: 700;
+      color: #ff4d58;
+    }
+
+    .eoc-hud-time {
+      color: #9ca3af;
+    }
+
+    .eoc-hud-nudge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: 4px;
+    }
+
+    .eoc-nudge-btn {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .eoc-nudge-btn:hover {
+      background: #e50914;
+      border-color: #e50914;
+    }
+  `;
+
+  // Native multi-layer pause (Hotstar / Netflix / Prime / standard HTML5)
+  function haltVideoPlayback(targetSec) {
+    console.log("[EOC-Shadow] Halting video playback pipeline...");
+
+    // 1. Netflix bridge message
+    if (location.hostname.includes("netflix.com")) {
+      window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
+    }
+
+    const v = activeVideo || document.querySelector("video");
+
+    // 2. Direct HTML5 pause & position lock
+    if (v) {
+      try {
+        v.pause();
+        if (typeof targetSec === "number") {
+          v.currentTime = targetSec;
+        }
+      } catch (e) {}
+    }
+
+    // 3. Dispatch Spacebar and 'k' keyboard events to player element & window
+    try {
+      const keyEvents = [
+        { key: " ", code: "Space", keyCode: 32, which: 32 },
+        { key: "k", code: "KeyK", keyCode: 75, which: 75 },
+      ];
+      const targets = [v, v?.parentElement, document.activeElement, document.body, window].filter(Boolean);
+      keyEvents.forEach(({ key, code, keyCode, which }) => {
+        targets.forEach((target) => {
+          try {
+            target.dispatchEvent(new KeyboardEvent("keydown", { key, code, keyCode, which, bubbles: true, cancelable: true }));
+            target.dispatchEvent(new KeyboardEvent("keyup", { key, code, keyCode, which, bubbles: true, cancelable: true }));
+          } catch (e) {}
+        });
+      });
+    } catch (e) {}
+
+    // 4. Click native OTT pause button if visible
+    try {
+      const selectors = [
+        'button[aria-label*="Pause" i]',
+        'button[title*="Pause" i]',
+        '[data-testid*="pause" i]',
+        'button.play-pause-btn'
+      ];
+      for (const sel of selectors) {
+        const btn = document.querySelector(sel);
+        if (btn) {
+          btn.click();
+          break;
+        }
+      }
+    } catch (e) {}
+
+    // 5. Active enforcement loop during modal display to resist auto-resume
+    if (pauseEnforcementInterval) clearInterval(pauseEnforcementInterval);
+    let ticks = 0;
+    pauseEnforcementInterval = setInterval(() => {
+      ticks++;
+      const currentV = activeVideo || document.querySelector("video");
+      if (currentV && !currentV.paused) {
+        try { currentV.pause(); } catch (e) {}
+      }
+      if (ticks > 25 || !isBreakActive) {
+        clearInterval(pauseEnforcementInterval);
+        pauseEnforcementInterval = null;
+      }
+    }, 100);
+  }
+
+  function resumeVideoPlayback() {
+    isBreakActive = false;
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
+    if (location.hostname.includes("netflix.com")) {
+      window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
+    }
+    const v = activeVideo || document.querySelector("video");
+    if (v) {
+      try { v.play().catch(() => {}); } catch (e) {}
+    }
+  }
+
+  function seekVideoPlayback(targetSec) {
+    if (location.hostname.includes("netflix.com")) {
+      window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_SEEK", timeMs: Math.round(targetSec * 1000) }, "*");
+    }
+    const v = activeVideo || document.querySelector("video");
+    if (v) {
+      try {
+        v.currentTime = targetSec;
+        v.play().catch(() => {});
+      } catch (e) {}
+    }
+  }
+
+  // Ensure Shadow DOM Host Container is mounted
+  function ensureShadowHost() {
+    const parentContainer = document.fullscreenElement ||
+      document.querySelector(".shaka-video-container, .player-container, [data-testid*='player-container'], .video-player") ||
+      document.body;
+
+    if (!hostElement || !parentContainer.contains(hostElement)) {
+      if (hostElement && hostElement.parentNode) {
+        hostElement.parentNode.removeChild(hostElement);
+      }
+      hostElement = document.createElement("div");
+      hostElement.id = "eoc-root";
+
+      // Attach Shadow DOM for 100% style isolation
+      shadowRoot = hostElement.attachShadow({ mode: "open" });
+
+      const style = document.createElement("style");
+      style.textContent = SHADOW_STYLES;
+      shadowRoot.appendChild(style);
+
+      // Create Backdrop & Break Card container
+      const backdrop = document.createElement("div");
+      backdrop.className = "eoc-backdrop";
+      backdrop.id = "eoc-backdrop";
+      shadowRoot.appendChild(backdrop);
+      cardElement = backdrop;
+
+      // Create Floating HUD Pill
+      const hud = document.createElement("div");
+      hud.className = "eoc-hud-pill hidden";
+      hud.id = "eoc-hud";
+      shadowRoot.appendChild(hud);
+      hudElement = hud;
+
+      parentContainer.appendChild(hostElement);
+
+      // Listen for user activity to auto-hide HUD
+      setupHudAutohideListeners();
+    }
+    return shadowRoot;
+  }
+
+  // Render episode break modal inside Shadow Root
+  function showEpisodeBreakModal(episode, nextEpisode) {
+    isBreakActive = true;
+    ensureShadowHost();
+    const isFinal = !nextEpisode;
+
+    cardElement.innerHTML = `
+      <div class="eoc-break-card">
+        <div class="eoc-badge-row">
+          <span class="eoc-badge eoc-badge-act">Part ${episode.episode_number} Complete</span>
+          <span class="eoc-badge eoc-badge-cliffhanger">★ Suspense: ${episode.cliffhanger_rating}/10</span>
+        </div>
+        <h2 class="eoc-card-title">${episode.title}</h2>
+        <div class="eoc-card-meta">
+          ${episode.start_time} ➔ ${episode.end_time} &bull; Break Rationale: ${episode.break_rationale}
+        </div>
+
+        <div class="eoc-panels">
+          <div class="eoc-panel">
+            <div class="eoc-panel-label">Previously On (Recap)</div>
+            <p class="eoc-panel-text">${episode.recap_text}</p>
+          </div>
+          <div class="eoc-panel">
+            <div class="eoc-panel-label">${isFinal ? "Series Concluded" : `Up Next: Part ${nextEpisode.episode_number}`}</div>
+            <p class="eoc-panel-text">${isFinal ? "You have completed the entire miniseries cut!" : nextEpisode.teaser_next}</p>
+          </div>
+        </div>
+
+        <div class="eoc-actions">
+          <button class="eoc-btn eoc-btn-secondary" id="eoc-continue-btn">
+            Continue Watching Film
+          </button>
+          ${!isFinal ? `
+            <button class="eoc-btn eoc-btn-primary" id="eoc-next-btn">
+              ▶ Play Part ${nextEpisode.episode_number}: ${nextEpisode.title}
+            </button>
+          ` : `
+            <button class="eoc-btn eoc-btn-primary" id="eoc-replay-btn">
+              ↺ Replay Series
+            </button>
+          `}
+        </div>
+      </div>
+    `;
+
+    cardElement.classList.add("visible");
+
+    // Action listeners inside Shadow DOM
+    cardElement.querySelector("#eoc-continue-btn")?.addEventListener("click", () => {
+      hideEpisodeBreakModal();
+      const cur = activeVideo?.currentTime || 0;
+      ignoreCutUntil = cur + 10;
+      resumeVideoPlayback();
+    });
+
+    cardElement.querySelector("#eoc-next-btn")?.addEventListener("click", () => {
+      hideEpisodeBreakModal();
+      if (nextEpisode) {
+        const targetSec = timestampToSeconds(nextEpisode.start_time);
+        seekVideoPlayback(targetSec + 0.1);
+        ignoreCutUntil = targetSec + 3.0;
+        resumeVideoPlayback();
+      }
+    });
+
+    cardElement.querySelector("#eoc-replay-btn")?.addEventListener("click", () => {
+      hideEpisodeBreakModal();
+      triggeredEpisodeBreaks.clear();
+      seekVideoPlayback(0);
+      resumeVideoPlayback();
+    });
+  }
+
+  function hideEpisodeBreakModal() {
+    isBreakActive = false;
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
+    if (cardElement) {
+      cardElement.classList.remove("visible");
+      cardElement.innerHTML = "";
+    }
+  }
+
+  // Update Synchronized HUD
+  function updateHud(currentSec) {
+    if (!activeRecipe || !activeRecipe.episodes || isBreakActive) {
+      if (hudElement) hudElement.classList.add("hidden");
+      return;
+    }
+
+    const currentEp = activeRecipe.episodes.find((ep) => {
+      const s = timestampToSeconds(ep.start_time);
+      const e = timestampToSeconds(ep.end_time);
+      return currentSec >= s && currentSec < e;
+    });
+
+    if (!currentEp) {
+      if (hudElement) hudElement.classList.add("hidden");
+      return;
+    }
+
+    ensureShadowHost();
+    const endSec = timestampToSeconds(currentEp.end_time);
+    const remaining = Math.max(0, endSec - currentSec);
+    const remMins = Math.floor(remaining / 60);
+    const remSecs = remaining % 60;
+    const isNotLast = currentEp.episode_number < activeRecipe.episodes.length;
+
+    hudElement.innerHTML = `
+      <span class="eoc-hud-title">Part ${currentEp.episode_number}: ${currentEp.title}</span>
+      <span class="eoc-hud-time">⏱️ ${remMins}m ${remSecs}s remaining</span>
+      ${isNotLast ? `
+        <div class="eoc-hud-nudge">
+          <button type="button" class="eoc-nudge-btn" id="eoc-nudge-prev" title="Shift cut point 1m earlier">◀ -1m</button>
+          <button type="button" class="eoc-nudge-btn" id="eoc-nudge-next" title="Shift cut point 1m later">+1m ▶</button>
+        </div>
+      ` : ""}
+    `;
+
+    if (isNotLast) {
+      hudElement.querySelector("#eoc-nudge-prev")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nudgeCurrentCut(-60, currentSec);
+      });
+      hudElement.querySelector("#eoc-nudge-next")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nudgeCurrentCut(60, currentSec);
+      });
+    }
+
+    hudElement.classList.remove("hidden");
+    resetHudAutohideTimer();
+  }
+
+  function nudgeCurrentCut(deltaSec, currentSec) {
+    if (!activeRecipe || !activeRecipe.episodes) return;
+    const epIdx = activeRecipe.episodes.findIndex((ep) => {
+      const s = timestampToSeconds(ep.start_time);
+      const e = timestampToSeconds(ep.end_time);
+      return currentSec >= s && currentSec < e;
+    });
+    if (epIdx < 0 || epIdx >= activeRecipe.episodes.length - 1) return;
+
+    const curEp = activeRecipe.episodes[epIdx];
+    const nxtEp = activeRecipe.episodes[epIdx + 1];
+    const oldCut = timestampToSeconds(curEp.end_time);
+    const minAllow = timestampToSeconds(curEp.start_time) + 60;
+    const maxAllow = timestampToSeconds(nxtEp.end_time) - 60;
+    const newCut = Math.max(minAllow, Math.min(maxAllow, oldCut + deltaSec));
+    const newTs = secondsToTimestamp(newCut);
+
+    curEp.end_time = newTs;
+    nxtEp.start_time = newTs;
+
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.set({ active_recipe: activeRecipe });
+    }
+    triggeredEpisodeBreaks.clear();
+    console.log("[EOC-Shadow] Nudged cut point to:", newTs);
+    updateHud(currentSec);
+  }
+
+  function setupHudAutohideListeners() {
+    const onUserActivity = () => {
+      if (hudElement && activeRecipe && !isBreakActive) {
+        hudElement.classList.remove("hidden");
+        resetHudAutohideTimer();
+      }
+    };
+    window.addEventListener("mousemove", onUserActivity, { passive: true });
+    window.addEventListener("keydown", onUserActivity, { passive: true });
+  }
+
+  function resetHudAutohideTimer() {
+    if (hudHideTimer) clearTimeout(hudHideTimer);
+    hudHideTimer = setTimeout(() => {
+      if (activeVideo && !activeVideo.paused && !isBreakActive && hudElement) {
+        hudElement.classList.add("hidden");
+      }
+    }, 3500);
+  }
+
+  // Principle 3: Glitch-free 1Hz-throttled evaluation
+  function evaluateCutTimestamp(currentSec) {
+    updateHud(currentSec);
+
+    if (!activeRecipe || !activeRecipe.episodes || currentSec < ignoreCutUntil) return;
+
+    for (let i = 0; i < activeRecipe.episodes.length; i++) {
+      const ep = activeRecipe.episodes[i];
+      const endSec = timestampToSeconds(ep.end_time);
+
+      // Trigger if current playback reaches within 1s of episode cut timestamp or within 60s buffer
+      const isAtOrPast = currentSec >= (endSec - 1) && currentSec < (endSec + 60);
+
+      if (isAtOrPast && !triggeredEpisodeBreaks.has(ep.episode_number)) {
+        triggeredEpisodeBreaks.add(ep.episode_number);
+        console.log(`[EOC-Shadow] Episode ${ep.episode_number} end reached at ${currentSec}s (Target: ${endSec}s)!`);
+        haltVideoPlayback(endSec);
+        const nextEp = activeRecipe.episodes[i + 1] || null;
+        showEpisodeBreakModal(ep, nextEp);
+        break;
+      }
+    }
+  }
+
+  // Principle 2: Bind directly to HTML5 video element
+  function attachVideoElement(video) {
+    if (!video || activeVideo === video) return;
+    activeVideo = video;
+    console.log("[EOC-Shadow] Attached to standard HTML5 video element:", video);
+
+    // 1Hz throttled timeupdate listener (Principle 3)
+    video.addEventListener("timeupdate", () => {
+      const currentSec = Math.floor(video.currentTime);
+      if (currentSec === lastCheckedSec) return; // Deduplicate: fires at most once per second
+      lastCheckedSec = currentSec;
+      evaluateCutTimestamp(currentSec);
+    });
+
+    video.addEventListener("seeking", () => {
+      const cur = Math.floor(video.currentTime);
+      if (activeRecipe?.episodes) {
+        triggeredEpisodeBreaks.clear();
+        activeRecipe.episodes.forEach((ep) => {
+          if (cur > timestampToSeconds(ep.end_time) + 3) {
+            triggeredEpisodeBreaks.add(ep.episode_number);
+          }
+        });
+      }
+    });
+
+    video.addEventListener("play", () => {
+      resetHudAutohideTimer();
+    });
+
+    video.addEventListener("pause", () => {
+      if (hudElement && !isBreakActive) {
+        hudElement.classList.remove("hidden");
+      }
+    });
+  }
+
+  // Principle 3: Single Page App (SPA) dynamic video mounting observer
+  function initEpisodifyOverlay() {
+    const video = document.querySelector("video");
+    if (video) attachVideoElement(video);
+    ensureShadowHost();
+
+    const observer = new MutationObserver(() => {
+      const candidate = document.querySelector("video");
+      if (candidate && candidate !== activeVideo) {
+        attachVideoElement(candidate);
+        ensureShadowHost();
+      }
+    });
+
+    observer.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+
+    // Fullscreen changes
+    document.addEventListener("fullscreenchange", () => {
+      ensureShadowHost();
+    });
+  }
+
+  // External / Popup Recipe API
+  function setRecipe(recipe) {
+    activeRecipe = recipe;
+    triggeredEpisodeBreaks.clear();
+    console.log("[EOC-Shadow] Loaded recipe:", recipe.meta?.title);
+    if (activeVideo) {
+      updateHud(Math.floor(activeVideo.currentTime));
+    }
+  }
+
+  // Listen for extension messages or window postMessages (standalone demo)
+  if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (msg.action === "SET_RECIPE") {
+        setRecipe(msg.recipe);
+        sendResponse({ status: "ok" });
+      } else if (msg.action === "JUMP_TO_EPISODE") {
+        if (activeRecipe) {
+          const ep = activeRecipe.episodes.find((e) => e.episode_number === msg.episode_number);
+          if (ep) {
+            const sec = timestampToSeconds(ep.start_time);
+            seekVideoPlayback(sec);
+            ignoreCutUntil = sec + 3;
+            hideEpisodeBreakModal();
+            sendResponse({ status: "ok", time: sec });
+          }
+        }
+      } else if (msg.action === "GET_STATUS") {
+        const v = activeVideo || document.querySelector("video");
+        sendResponse({
+          hasVideo: !!v,
+          currentTime: v ? v.currentTime : 0,
+          duration: v ? v.duration : 0,
+          recipeTitle: activeRecipe?.meta?.title || null,
+          episodesCount: activeRecipe?.episodes?.length || 0,
+          pageTitle: document.title,
+          url: window.location.href,
+        });
+        return true;
+      }
+    });
+
+    const BUILTIN_HOTSTAR_BETHLEHEM_8EP = {
+      $schema: "https://episodify.org/schema/v1.json",
+      meta: {
+        title: "Bethlehem Kudumba Unit (8-Episode Miniseries)",
+        year: 2026,
+        runtime_seconds: 9313,
+        imdb_id: "tt31846512",
+        pacing: "comedy",
+        generator: "eoc-core"
+      },
+      total_episodes: 8,
+      episodes: [
+        { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: "00:19:24", cliffhanger_rating: 8.4, break_rationale: "Ashley relocates to Angamaly; her first glimpse of the parish church choir.", recap_text: "Following financial distress, Ashley arrives in Angamaly leaving her old life behind.", teaser_next: "Ashley attends her first Bethlehem Kudumba Unit prayer meeting and meets Justin." },
+        { episode_number: 2, title: "Part 2: The Kudumba Unit Spark", start_time: "00:19:24", end_time: "00:38:48", cliffhanger_rating: 8.8, break_rationale: "Ashley joins Justin's choir session; instant chemistry sparks curiosity among unit elders.", recap_text: "Justin introduces Ashley to the parish choir, igniting an immediate musical connection.", teaser_next: "Secret late-night choir rehearsals and scooter rides begin to raise neighborhood eyebrows." },
+        { episode_number: 3, title: "Part 3: Rhythms & Rumors", start_time: "00:38:48", end_time: "00:58:12", cliffhanger_rating: 9.1, break_rationale: "Justin and Ashley's secret romance deepens as they narrowly avoid nosy neighbors.", recap_text: "Banter and late-night rehearsals blossom into a secret romance across Angamaly.", teaser_next: "The parish feast arrives as rumors threaten to reach Ashley's conservative family." },
+        { episode_number: 4, title: "Part 4: The Parish Feast Confession", start_time: "00:58:12", end_time: "01:17:36", cliffhanger_rating: 9.4, break_rationale: "Justin confesses his feelings before the feast just as family tensions reach a boiling point.", recap_text: "Their performance at the feast captivates the parish, but family scrutiny intensifies.", teaser_next: "An unexpected letter from Dublin arrives, threatening to alter Ashley's future." },
+        { episode_number: 5, title: "Part 5: The Ireland Dilemma", start_time: "01:17:36", end_time: "01:37:00", cliffhanger_rating: 9.3, break_rationale: "Ashley receives her student visa for Ireland; family pressure mounts.", recap_text: "With family pressure mounting to secure her future in Dublin, Ashley is torn.", teaser_next: "Justin makes a heartbreaking choice at the midnight tea stall." },
+        { episode_number: 6, title: "Part 6: The Airport Farewell", start_time: "01:37:00", end_time: "01:56:24", cliffhanger_rating: 9.7, break_rationale: "Emotional farewell at Cochin airport as Justin selflessly encourages Ashley to board.", recap_text: "Justin chooses Ashley's dreams over his own heartbreak, waving goodbye at gate 4.", teaser_next: "Eighteen months pass in Ireland; a wedding brings Ashley back to Kerala." },
+        { episode_number: 7, title: "Part 7: Return to Angamaly", start_time: "01:56:24", end_time: "02:15:48", cliffhanger_rating: 9.2, break_rationale: "Ashley returns from Ireland for the wedding and spots Justin across the church courtyard.", recap_text: "Returning to Kerala after 18 months, Ashley discovers Justin waiting by the parish gate.", teaser_next: "The wedding ceremony begins as Ashley and Justin confront unspoken feelings." },
+        { episode_number: 8, title: "Part 8: Harmonies of Bethlehem", start_time: "02:15:48", end_time: "02:35:13", cliffhanger_rating: 8.0, break_rationale: "Grand finale: the full choir harmonizes at the ceremony, reuniting Ashley and Justin in triumph.", recap_text: "Ashley and Justin reunite in a joyful, musical celebration at the parish hall.", teaser_next: "Series finale concludes the 8-episode miniseries cut of Bethlehem Kudumba Unit!" }
+      ]
+    };
+
+    function checkAndAutoSelect() {
+      const url = window.location.href.toLowerCase();
+      if ((url.includes("hotstar.com") || url.includes("disneyplus")) && (url.includes("bethlehem") || url.includes("1271710275") || document.title.toLowerCase().includes("bethlehem"))) {
+        if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 6956) {
+          setRecipe(BUILTIN_HOTSTAR_BETHLEHEM_8EP);
+          chrome.storage?.local?.set({ active_recipe: BUILTIN_HOTSTAR_BETHLEHEM_8EP });
+        }
+      }
+    }
+
+    chrome.storage?.local?.get(["active_recipe"], (res) => {
+      if (res?.active_recipe) setRecipe(res.active_recipe);
+      checkAndAutoSelect();
+    });
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.action === "SET_RECIPE" && event.data.recipe) {
+      setRecipe(event.data.recipe);
+    }
+  });
+
+  // Expose API for standalone testing & simulation
+  window.EpisodifyOverlay = {
+    init: initEpisodifyOverlay,
+    setRecipe: setRecipe,
+    showModal: showEpisodeBreakModal,
+    hideModal: hideEpisodeBreakModal,
+    halt: haltVideoPlayback,
+    resume: resumeVideoPlayback,
+  };
+
+  // Auto-init on page ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initEpisodifyOverlay);
+  } else {
+    initEpisodifyOverlay();
+  }
+})();
