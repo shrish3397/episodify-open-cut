@@ -303,25 +303,79 @@ function autoDetectMovie(url = "", title = "") {
   }
 }
 
+function tryAutoInject(tab, callback) {
+  if (!chrome.scripting || !tab?.id) {
+    if (callback) callback();
+    return;
+  }
+
+  chrome.scripting.executeScript(
+    {
+      target: { tabId: tab.id },
+      files: ["content.js"],
+    },
+    () => {
+      chrome.scripting.insertCSS(
+        {
+          target: { tabId: tab.id },
+          files: ["overlay.css"],
+        },
+        () => {
+          if (callback) setTimeout(callback, 200);
+        }
+      );
+    }
+  );
+}
+
 function checkActiveTabStatus(statusEl) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "GET_STATUS" }, (res) => {
-        if (!chrome.runtime.lastError && res?.hasVideo) {
-          statusEl.classList.add("connected");
-          statusEl.querySelector(".status-text").textContent = "Player Active";
-          statusEl.title = "Connected to active video player!";
+    const tab = tabs[0];
+    if (!tab?.id) return;
+    const url = tab.url || "";
 
-          if (res.url || res.pageTitle) {
-            autoDetectMovie(res.url, res.pageTitle);
-          }
+    chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (res) => {
+      if (!chrome.runtime.lastError && res?.hasVideo) {
+        statusEl.classList.add("connected");
+        statusEl.querySelector(".status-text").textContent = "Player Active";
+        statusEl.title = "Connected to active video player!";
+
+        if (res.url || res.pageTitle) {
+          autoDetectMovie(res.url, res.pageTitle);
+        }
+      } else if (chrome.runtime.lastError) {
+        // Content script disconnected or not yet injected: auto-inject!
+        tryAutoInject(tab, () => {
+          chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (retryRes) => {
+            if (!chrome.runtime.lastError && retryRes?.hasVideo) {
+              statusEl.classList.add("connected");
+              statusEl.querySelector(".status-text").textContent = "Player Active";
+              if (retryRes.url || retryRes.pageTitle) {
+                autoDetectMovie(retryRes.url, retryRes.pageTitle);
+              }
+            } else {
+              statusEl.classList.remove("connected");
+              if (url.includes("netflix.com") && !url.includes("/watch/")) {
+                statusEl.querySelector(".status-text").textContent = "Click Play on Movie";
+                statusEl.title = "Click Play on the movie to open the video player!";
+              } else {
+                statusEl.querySelector(".status-text").textContent = "⚠️ Refresh Tab (Cmd+R)";
+                statusEl.title = "Please refresh this tab once to connect the extension.";
+              }
+            }
+          });
+        });
+      } else {
+        statusEl.classList.remove("connected");
+        if (url.includes("netflix.com") && !url.includes("/watch/")) {
+          statusEl.querySelector(".status-text").textContent = "Click Play on Movie";
+          statusEl.title = "Click Play on the movie to open the video player!";
         } else {
-          statusEl.classList.remove("connected");
           statusEl.querySelector(".status-text").textContent = "No Video Playing";
           statusEl.title = "Open and play a movie on Hotstar, Netflix, YouTube, or the demo player to connect.";
         }
-      });
-    }
+      }
+    });
   });
 }
 
