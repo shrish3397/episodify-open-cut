@@ -30,26 +30,37 @@ function secondsToTimestamp(sec) {
 
 // Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
-  "bethlehem-hotstar": {
+  "bethlehem-8ep": {
     $schema: "https://episodify.org/schema/v1.json",
-    meta: { title: "Bethlehem Kudumba Unit (Hotstar Cut)", year: 2026, runtime_seconds: 6956, imdb_id: "tt31846512", pacing: "comedy" },
-    total_episodes: 4,
+    meta: {
+      title: "Bethlehem Kudumba Unit (8-Episode Miniseries)",
+      year: 2026,
+      runtime_seconds: 9313,
+      imdb_id: "tt31846512",
+      pacing: "comedy",
+      generator: "eoc-core"
+    },
+    total_episodes: 8,
     episodes: [
-      { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:28:50", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
-      { episode_number: 2, title: "Rhythms & Rumors", start_time: "00:28:50", end_time: "00:57:40", cliffhanger_rating: 9.1, break_rationale: "Justin confesses feelings before parish feast as elders watch.", recap_text: "Shared love for music fuels their secret romance amidst humorous neighbor encounters.", teaser_next: "An unexpected student visa for Ireland arrives, threatening their future." },
-      { episode_number: 3, title: "The Ireland Dilemma", start_time: "00:57:40", end_time: "01:26:30", cliffhanger_rating: 9.5, break_rationale: "Emotional airport departure, cutting forward to Kerala return.", recap_text: "Torn between Dublin studies and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Ashley returns to Kerala for a wedding, finding Justin waiting at the church." },
-      { episode_number: 4, title: "Harmonies of Bethlehem", start_time: "01:26:30", end_time: "01:55:56", cliffhanger_rating: 7.8, break_rationale: "Joyful choir wedding performance and heartfelt reconciliation.", recap_text: "Eighteen months after leaving, Ashley confronts past feelings, culminating in a reunion.", teaser_next: "Series finale concludes the heartwarming Malayalam miniseries." }
+      { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: "00:19:24", cliffhanger_rating: 8.4, break_rationale: "Ashley relocates to Angamaly; her first glimpse of the parish church choir.", recap_text: "Following financial distress, Ashley arrives in Angamaly leaving her old life behind.", teaser_next: "Ashley attends her first Bethlehem Kudumba Unit prayer meeting and meets Justin." },
+      { episode_number: 2, title: "Part 2: The Kudumba Unit Spark", start_time: "00:19:24", end_time: "00:38:48", cliffhanger_rating: 8.8, break_rationale: "Ashley joins Justin's choir session; instant chemistry sparks curiosity among unit elders.", recap_text: "Justin introduces Ashley to the parish choir, igniting an immediate musical connection.", teaser_next: "Secret late-night choir rehearsals and scooter rides begin to raise neighborhood eyebrows." },
+      { episode_number: 3, title: "Part 3: Rhythms & Rumors", start_time: "00:38:48", end_time: "00:58:12", cliffhanger_rating: 9.1, break_rationale: "Justin and Ashley's secret romance deepens as they narrowly avoid nosy neighbors.", recap_text: "Banter and late-night rehearsals blossom into a secret romance across Angamaly.", teaser_next: "The parish feast arrives as rumors threaten to reach Ashley's conservative family." },
+      { episode_number: 4, title: "Part 4: The Parish Feast Confession", start_time: "00:58:12", end_time: "01:17:36", cliffhanger_rating: 9.4, break_rationale: "Justin confesses his feelings before the feast just as family tensions reach a boiling point.", recap_text: "Their performance at the feast captivates the parish, but family scrutiny intensifies.", teaser_next: "An unexpected letter from Dublin arrives, threatening to alter Ashley's future." },
+      { episode_number: 5, title: "Part 5: The Ireland Dilemma", start_time: "01:17:36", end_time: "01:37:00", cliffhanger_rating: 9.3, break_rationale: "Ashley receives her student visa for Ireland; family pressure mounts.", recap_text: "With family pressure mounting to secure her future in Dublin, Ashley is torn.", teaser_next: "Justin makes a heartbreaking choice at the midnight tea stall." },
+      { episode_number: 6, title: "Part 6: The Airport Farewell", start_time: "01:37:00", end_time: "01:56:24", cliffhanger_rating: 9.7, break_rationale: "Emotional farewell at Cochin airport as Justin selflessly encourages Ashley to board.", recap_text: "Justin chooses Ashley's dreams over his own heartbreak, waving goodbye at gate 4.", teaser_next: "Eighteen months pass in Ireland; a wedding brings Ashley back to Kerala." },
+      { episode_number: 7, title: "Part 7: Return to Angamaly", start_time: "01:56:24", end_time: "02:15:48", cliffhanger_rating: 9.2, break_rationale: "Ashley returns from Ireland for the wedding and spots Justin across the church courtyard.", recap_text: "Returning to Kerala after 18 months, Ashley discovers Justin waiting by the parish gate.", teaser_next: "The wedding ceremony begins as Ashley and Justin confront unspoken feelings." },
+      { episode_number: 8, title: "Part 8: Harmonies of Bethlehem", start_time: "02:15:48", end_time: "02:35:13", cliffhanger_rating: 8.0, break_rationale: "Grand finale: the full choir harmonizes at the ceremony, reuniting Ashley and Justin in triumph.", recap_text: "Ashley and Justin reunite in a joyful, musical celebration at the parish hall.", teaser_next: "Series finale concludes the 8-episode miniseries cut of Bethlehem Kudumba Unit!" }
     ]
   },
-  bethlehem: {
+  "bethlehem-4ep": {
     $schema: "https://episodify.org/schema/v1.json",
-    meta: { title: "Bethlehem Kudumba Unit (Theatrical)", year: 2026, runtime_seconds: 9360, imdb_id: "tt31846512", pacing: "comedy" },
+    meta: { title: "Bethlehem Kudumba Unit (4-Episode Cut)", year: 2026, runtime_seconds: 9313, imdb_id: "tt31846512", pacing: "comedy" },
     total_episodes: 4,
     episodes: [
-      { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:39:15", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
-      { episode_number: 2, title: "Rhythms & Rumors", start_time: "00:39:15", end_time: "01:18:40", cliffhanger_rating: 9.1, break_rationale: "Justin confesses feelings before parish feast as elders watch.", recap_text: "Shared love for music fuels their secret romance amidst humorous neighbor encounters.", teaser_next: "An unexpected student visa for Ireland arrives, threatening their future." },
-      { episode_number: 3, title: "The Ireland Dilemma", start_time: "01:18:40", end_time: "01:57:25", cliffhanger_rating: 9.5, break_rationale: "Emotional airport departure, cutting 18 months forward to Kerala return.", recap_text: "Torn between Dublin studies and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Ashley returns to Kerala for a wedding, finding Justin waiting at the church." },
-      { episode_number: 4, title: "Harmonies of Bethlehem", start_time: "01:57:25", end_time: "02:36:00", cliffhanger_rating: 7.8, break_rationale: "Joyful choir wedding performance and heartfelt reconciliation.", recap_text: "Eighteen months after leaving, Ashley confronts past feelings, culminating in a reunion.", teaser_next: "Series finale concludes the heartwarming Malayalam miniseries." }
+      { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:38:48", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
+      { episode_number: 2, title: "Rhythms & Rumors", start_time: "00:38:48", end_time: "01:17:36", cliffhanger_rating: 9.1, break_rationale: "Justin confesses feelings before parish feast as elders watch.", recap_text: "Shared love for music fuels their secret romance amidst humorous neighbor encounters.", teaser_next: "An unexpected student visa for Ireland arrives, threatening their future." },
+      { episode_number: 3, title: "The Ireland Dilemma", start_time: "01:17:36", end_time: "01:56:24", cliffhanger_rating: 9.5, break_rationale: "Emotional airport departure, cutting 18 months forward to Kerala return.", recap_text: "Torn between Dublin studies and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Ashley returns to Kerala for a wedding, finding Justin waiting at the church." },
+      { episode_number: 4, title: "Harmonies of Bethlehem", start_time: "01:56:24", end_time: "02:35:13", cliffhanger_rating: 7.8, break_rationale: "Joyful choir wedding performance and heartfelt reconciliation.", recap_text: "Eighteen months after leaving, Ashley confronts past feelings, culminating in a reunion.", teaser_next: "Series finale concludes the heartwarming Malayalam miniseries." }
     ]
   },
   "the-batman": {
@@ -109,7 +120,7 @@ const BUILTIN_RECIPES = {
   }
 };
 
-let currentRecipe = BUILTIN_RECIPES["bethlehem-hotstar"];
+let currentRecipe = BUILTIN_RECIPES["bethlehem-8ep"];
 let onlineRegistry = [];
 let pendingPublishData = null;
 

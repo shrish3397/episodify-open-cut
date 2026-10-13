@@ -4,13 +4,24 @@
   "registry": [
     {
       "imdb_id": "tt31846512",
-      "title": "Bethlehem Kudumba Unit (Hotstar Cut)",
+      "title": "Bethlehem Kudumba Unit (8-Episode Miniseries)",
+      "year": 2026,
+      "director": "Girish A.D.",
+      "producers": "Bhavana Studios (Fahadh Faasil, Dileesh Pothan, Syam Pushkaran)",
+      "runtime_seconds": 9313,
+      "total_episodes": 8,
+      "recipe_file": "bethlehem-kudumba-unit-8ep.eoc.json",
+      "pacing": "comedy"
+    },
+    {
+      "imdb_id": "tt31846512",
+      "title": "Bethlehem Kudumba Unit (4-Episode Cut)",
       "year": 2026,
       "director": "Girish A.D.",
       "producers": "Bhavana Studios",
-      "runtime_seconds": 6956,
+      "runtime_seconds": 9313,
       "total_episodes": 4,
-      "recipe_file": "bethlehem-kudumba-unit-hotstar-2026.eoc.json",
+      "recipe_file": "bethlehem-kudumba-unit-2026.eoc.json",
       "pacing": "comedy"
     },
     {
