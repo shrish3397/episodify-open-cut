@@ -27,7 +27,8 @@
       <div class="select-wrapper">
         <select id="movie-select" class="movie-select">
           <option value="auto">✨ Auto-Detect from Player</option>
-          <option value="bethlehem" selected>Bethlehem Kudumba Unit (2026) - 4 Episodes</option>
+          <option value="bethlehem-hotstar" selected>Bethlehem Kudumba Unit (Hotstar 1h 56m) - 4 Eps</option>
+          <option value="bethlehem">Bethlehem Kudumba Unit (Theatrical 2h 36m) - 4 Eps</option>
           <option value="the-batman">The Batman (2022) - 4 Episodes</option>
           <option value="dune-2">Dune: Part Two (2024) - 4 Episodes</option>
           <option value="endgame">Avengers: Endgame (2019) - 4 Episodes</option>
@@ -38,6 +39,11 @@
       </div>
 
       <input type="file" id="custom-file-input" accept=".json,.eoc.json" style="display: none;">
+
+      <div id="mismatch-banner" class="mismatch-banner" style="display: none;">
+        <span class="mismatch-text" id="mismatch-text">⚠️ Stream differs from recipe duration.</span>
+        <button type="button" id="rescale-btn" class="rescale-btn">⚡ Auto-Align to Stream</button>
+      </div>
     </section>
 
     <section class="movie-meta-card" id="movie-meta-card">

@@ -7,11 +7,43 @@ const CDN_RECIPE_BASE =
 const GITHUB_SUBMIT_BASE =
   "https://github.com/episodify/episodify-open-cut/new/main/recipes";
 
+// Time conversion helpers
+function timestampToSeconds(ts) {
+  if (typeof ts === "number") return ts;
+  const parts = String(ts).trim().replace(",", ".").split(":");
+  if (parts.length === 3) {
+    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+  } else if (parts.length === 2) {
+    return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+  }
+  return parseFloat(ts) || 0;
+}
+
+function secondsToTimestamp(sec) {
+  if (sec < 0) sec = 0;
+  const totalSecs = Math.floor(sec);
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 // Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
+  "bethlehem-hotstar": {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: { title: "Bethlehem Kudumba Unit (Hotstar Cut)", year: 2026, runtime_seconds: 6956, imdb_id: "tt31846512", pacing: "comedy" },
+    total_episodes: 4,
+    episodes: [
+      { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:28:50", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
+      { episode_number: 2, title: "Rhythms & Rumors", start_time: "00:28:50", end_time: "00:57:40", cliffhanger_rating: 9.1, break_rationale: "Justin confesses feelings before parish feast as elders watch.", recap_text: "Shared love for music fuels their secret romance amidst humorous neighbor encounters.", teaser_next: "An unexpected student visa for Ireland arrives, threatening their future." },
+      { episode_number: 3, title: "The Ireland Dilemma", start_time: "00:57:40", end_time: "01:26:30", cliffhanger_rating: 9.5, break_rationale: "Emotional airport departure, cutting forward to Kerala return.", recap_text: "Torn between Dublin studies and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Ashley returns to Kerala for a wedding, finding Justin waiting at the church." },
+      { episode_number: 4, title: "Harmonies of Bethlehem", start_time: "01:26:30", end_time: "01:55:56", cliffhanger_rating: 7.8, break_rationale: "Joyful choir wedding performance and heartfelt reconciliation.", recap_text: "Eighteen months after leaving, Ashley confronts past feelings, culminating in a reunion.", teaser_next: "Series finale concludes the heartwarming Malayalam miniseries." }
+    ]
+  },
   bethlehem: {
     $schema: "https://episodify.org/schema/v1.json",
-    meta: { title: "Bethlehem Kudumba Unit", year: 2026, runtime_seconds: 9360, imdb_id: "tt31846512", pacing: "comedy" },
+    meta: { title: "Bethlehem Kudumba Unit (Theatrical)", year: 2026, runtime_seconds: 9360, imdb_id: "tt31846512", pacing: "comedy" },
     total_episodes: 4,
     episodes: [
       { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:39:15", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
@@ -77,7 +109,7 @@ const BUILTIN_RECIPES = {
   }
 };
 
-let currentRecipe = BUILTIN_RECIPES.bethlehem;
+let currentRecipe = BUILTIN_RECIPES["bethlehem-hotstar"];
 let onlineRegistry = [];
 let pendingPublishData = null;
 
@@ -236,18 +268,33 @@ function updateUI() {
   (currentRecipe.episodes || []).forEach((ep) => {
     const item = document.createElement("div");
     item.className = "episode-item";
+    const isFirstEp = ep.episode_number === 1;
 
     item.innerHTML = `
-      <div class="episode-info">
-        <div class="episode-item-title">Part ${ep.episode_number}: ${ep.title}</div>
-        <div class="episode-item-meta">
-          <span>${ep.start_time} - ${ep.end_time}</span>
-          <span class="episode-cliffhanger">★ ${ep.cliffhanger_rating}/10</span>
+      <div style="width: 100%;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div class="episode-info">
+            <div class="episode-item-title">Part ${ep.episode_number}: ${ep.title}</div>
+            <div class="episode-item-meta">
+              <span>${ep.start_time} - ${ep.end_time}</span>
+              <span class="episode-cliffhanger">★ ${ep.cliffhanger_rating}/10</span>
+            </div>
+          </div>
+          <div class="episode-actions">
+            <button type="button" class="play-ep-btn" data-ep="${ep.episode_number}" title="Play Part ${ep.episode_number}">
+              ▶ Play
+            </button>
+            ${!isFirstEp ? `<button type="button" class="calib-toggle-btn" data-ep="${ep.episode_number}" title="Adjust cut timing">⚙️</button>` : ""}
+          </div>
         </div>
+        ${!isFirstEp ? `
+          <div class="calibration-panel" id="calib-panel-${ep.episode_number}" style="display: none;">
+            <button type="button" class="nudge-btn nudge-minus" data-ep="${ep.episode_number}" title="Shift start 10s earlier">◀ -10s</button>
+            <button type="button" class="nudge-btn nudge-plus" data-ep="${ep.episode_number}" title="Shift start 10s later">+10s ▶</button>
+            <button type="button" class="set-now-btn" data-ep="${ep.episode_number}" title="Set Part ${ep.episode_number} start to current video playback time">📍 Set to Video Time</button>
+          </div>
+        ` : ""}
       </div>
-      <button class="play-ep-btn" data-ep="${ep.episode_number}">
-        ▶ Play
-      </button>
     `;
 
     const btn = item.querySelector(".play-ep-btn");
@@ -255,8 +302,107 @@ function updateUI() {
       jumpToEpisode(ep.episode_number);
     });
 
+    if (!isFirstEp) {
+      const calibToggle = item.querySelector(".calib-toggle-btn");
+      const calibPanel = item.querySelector(`#calib-panel-${ep.episode_number}`);
+      calibToggle?.addEventListener("click", () => {
+        calibPanel.style.display = calibPanel.style.display === "none" ? "flex" : "none";
+      });
+
+      const minusBtn = item.querySelector(".nudge-minus");
+      minusBtn?.addEventListener("click", () => {
+        nudgeEpisodeStart(ep.episode_number, -10);
+      });
+
+      const plusBtn = item.querySelector(".nudge-plus");
+      plusBtn?.addEventListener("click", () => {
+        nudgeEpisodeStart(ep.episode_number, 10);
+      });
+
+      const setNowBtn = item.querySelector(".set-now-btn");
+      setNowBtn?.addEventListener("click", () => {
+        setEpisodeStartToCurrentVideoTime(ep.episode_number);
+      });
+    }
+
     listContainer.appendChild(item);
   });
+}
+
+function nudgeEpisodeStart(epNum, deltaSec) {
+  if (!currentRecipe || !currentRecipe.episodes) return;
+  const epIdx = currentRecipe.episodes.findIndex((e) => e.episode_number === epNum);
+  if (epIdx <= 0) return;
+
+  const prevEp = currentRecipe.episodes[epIdx - 1];
+  const thisEp = currentRecipe.episodes[epIdx];
+
+  const currentSec = timestampToSeconds(thisEp.start_time);
+  const minAllowed = timestampToSeconds(prevEp.start_time) + 30;
+  const maxAllowed = timestampToSeconds(thisEp.end_time) - 30;
+
+  const newSec = Math.max(minAllowed, Math.min(maxAllowed, currentSec + deltaSec));
+  const newTs = secondsToTimestamp(newSec);
+
+  thisEp.start_time = newTs;
+  prevEp.end_time = newTs;
+
+  applyRecipe(currentRecipe);
+  jumpToEpisode(epNum);
+}
+
+function setEpisodeStartToCurrentVideoTime(epNum) {
+  if (!currentRecipe || !currentRecipe.episodes) return;
+  const epIdx = currentRecipe.episodes.findIndex((e) => e.episode_number === epNum);
+  if (epIdx <= 0) return;
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs[0]?.id) return;
+    chrome.tabs.sendMessage(tabs[0].id, { action: "GET_STATUS" }, (res) => {
+      if (chrome.runtime.lastError || res?.currentTime === undefined) {
+        alert("Could not read current video player time. Is the video playing?");
+        return;
+      }
+      const curSec = Math.round(res.currentTime);
+      const prevEp = currentRecipe.episodes[epIdx - 1];
+      const thisEp = currentRecipe.episodes[epIdx];
+
+      const minAllowed = timestampToSeconds(prevEp.start_time) + 10;
+      const maxAllowed = timestampToSeconds(thisEp.end_time) - 10;
+
+      if (curSec <= minAllowed || curSec >= maxAllowed) {
+        alert(`Cannot set start time to ${secondsToTimestamp(curSec)}. Must be between ${prevEp.start_time} and ${thisEp.end_time}.`);
+        return;
+      }
+
+      const newTs = secondsToTimestamp(curSec);
+      thisEp.start_time = newTs;
+      prevEp.end_time = newTs;
+
+      applyRecipe(currentRecipe);
+    });
+  });
+}
+
+function scaleRecipeToDuration(targetDurationSec) {
+  if (!currentRecipe || !currentRecipe.episodes || targetDurationSec <= 0) return;
+  const oldDuration = currentRecipe.meta?.runtime_seconds || timestampToSeconds(currentRecipe.episodes[currentRecipe.episodes.length - 1].end_time);
+  if (!oldDuration || oldDuration <= 0) return;
+
+  const factor = targetDurationSec / oldDuration;
+  currentRecipe.meta.runtime_seconds = Math.round(targetDurationSec);
+
+  currentRecipe.episodes.forEach((ep, idx) => {
+    if (idx === 0) {
+      ep.start_time = "00:00:00";
+    } else {
+      ep.start_time = secondsToTimestamp(Math.round(timestampToSeconds(ep.start_time) * factor));
+      currentRecipe.episodes[idx - 1].end_time = ep.start_time;
+    }
+  });
+  currentRecipe.episodes[currentRecipe.episodes.length - 1].end_time = secondsToTimestamp(Math.round(targetDurationSec));
+
+  applyRecipe(currentRecipe);
 }
 
 function jumpToEpisode(epNum) {
@@ -275,8 +421,9 @@ function autoDetectMovie(url = "", title = "") {
 
   // 1. Check built-in recipes
   let matchedKey = null;
-  if (combined.includes("bethlehem")) matchedKey = "bethlehem";
-  else if (combined.includes("batman")) matchedKey = "the-batman";
+  if (combined.includes("bethlehem")) {
+    matchedKey = (combined.includes("hotstar") || combined.includes("1271710275")) ? "bethlehem-hotstar" : "bethlehem";
+  } else if (combined.includes("batman")) matchedKey = "the-batman";
   else if (combined.includes("dune")) matchedKey = "dune-2";
   else if (combined.includes("endgame") || combined.includes("avengers")) matchedKey = "endgame";
   else if (combined.includes("godfather")) matchedKey = "godfather";
@@ -342,6 +489,25 @@ function checkActiveTabStatus(statusEl) {
 
         if (res.url || res.pageTitle) {
           autoDetectMovie(res.url, res.pageTitle);
+        }
+
+        if (res.duration && res.duration > 60 && currentRecipe?.meta?.runtime_seconds) {
+          const diff = Math.abs(res.duration - currentRecipe.meta.runtime_seconds);
+          const banner = document.getElementById("mismatch-banner");
+          if (banner) {
+            if (diff > 180) {
+              const streamDur = secondsToTimestamp(res.duration);
+              const recipeDur = secondsToTimestamp(currentRecipe.meta.runtime_seconds);
+              document.getElementById("mismatch-text").textContent = `⚠️ Stream is ${streamDur}, recipe is ${recipeDur}.`;
+              banner.style.display = "flex";
+              document.getElementById("rescale-btn").onclick = () => {
+                scaleRecipeToDuration(res.duration);
+                banner.style.display = "none";
+              };
+            } else {
+              banner.style.display = "none";
+            }
+          }
         }
       } else if (chrome.runtime.lastError) {
         // Content script disconnected or not yet injected: auto-inject!

@@ -348,6 +348,7 @@
       sendResponse({
         hasVideo: isPlayerReady,
         currentTime: activeVideo ? activeVideo.currentTime : netflixCurrentTime,
+        duration: activeVideo ? activeVideo.duration : 0,
         recipeTitle: activeRecipe?.meta?.title || null,
         episodesCount: activeRecipe?.episodes?.length || 0,
         pageTitle: document.title,

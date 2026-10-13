@@ -1,0 +1,62 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Bethlehem Kudumba Unit (Hotstar Cut)",
+    "year": 2026,
+    "runtime_seconds": 6956,
+    "imdb_id": "tt31846512",
+    "pacing": "comedy",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "The Angamaly Shift",
+      "start_time": "00:00:00",
+      "end_time": "00:28:50",
+      "cliffhanger_rating": 8.4,
+      "break_rationale": "Ashley attends her first Bethlehem Kudumba Unit prayer gathering in Angamaly, where her musical connection with Justin first ignites neighborhood curiosity.",
+      "recap_text": "Following financial distress, Ashley and her family relocate to Angamaly. While adjusting to the neighborhood, she crosses paths with Justin, the charismatic choir coordinator.",
+      "teaser_next": "Secret choir rehearsals and community encounters spark suspicions among the watchful Kudumba Unit elders.",
+      "scene_boundary_verified": true,
+      "cut_type": "hard_cut_with_silence"
+    },
+    {
+      "episode_number": 2,
+      "title": "Rhythms & Rumors",
+      "start_time": "00:28:50",
+      "end_time": "00:57:40",
+      "cliffhanger_rating": 9.1,
+      "break_rationale": "Justin confesses his genuine feelings on the eve of the parish feast just as neighborhood gossip threatens to expose their romance.",
+      "recap_text": "Bonding over shared music, Ashley and Justin's secret romance blossoms despite contrasting backgrounds and community choir practice.",
+      "teaser_next": "An unexpected student visa for Ireland arrives, threatening to tear Ashley and Justin apart.",
+      "scene_boundary_verified": true,
+      "cut_type": "hard_cut_with_silence"
+    },
+    {
+      "episode_number": 3,
+      "title": "The Ireland Dilemma",
+      "start_time": "00:57:40",
+      "end_time": "01:26:30",
+      "cliffhanger_rating": 9.5,
+      "break_rationale": "Emotional departure as Justin selflessly encourages Ashley to board her flight to Dublin, jumping forward to her sudden return.",
+      "recap_text": "Torn between her family's hopes and an overseas education in Ireland, Ashley departs as Justin makes the agonizing choice to let her go.",
+      "teaser_next": "Ashley returns to Kerala for a wedding, only to discover Justin standing across the parish church courtyard.",
+      "scene_boundary_verified": true,
+      "cut_type": "hard_cut_with_silence"
+    },
+    {
+      "episode_number": 4,
+      "title": "Harmonies of Bethlehem",
+      "start_time": "01:26:30",
+      "end_time": "01:55:56",
+      "cliffhanger_rating": 7.8,
+      "break_rationale": "The miniseries concludes with the joyful choir performance at the parish wedding, bringing Ashley and Justin's love story to a triumphant close.",
+      "recap_text": "Ashley returns to Angamaly and confronts the feelings she left behind, leading to a tender and hilarious reunion with Justin.",
+      "teaser_next": "Series finale concludes the heartwarming Malayalam romantic comedy-drama miniseries.",
+      "scene_boundary_verified": true,
+      "cut_type": "end_of_film"
+    }
+  ]
+}
