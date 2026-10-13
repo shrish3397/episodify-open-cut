@@ -223,12 +223,59 @@
     const remaining = Math.max(0, Math.floor(endSec - currentTime));
     const remMins = Math.floor(remaining / 60);
     const remSecs = remaining % 60;
+    const isNotLast = currentEp.episode_number < activeRecipe.episodes.length;
 
     hud.innerHTML = `
       <span class="eoc-hud-title">Part ${currentEp.episode_number}: ${currentEp.title}</span>
       <span class="eoc-hud-time">⏱️ ${remMins}m ${remSecs}s remaining in episode</span>
+      ${isNotLast ? `
+        <div class="eoc-hud-nudge">
+          <button type="button" class="eoc-hud-btn" id="eoc-hud-nudge-prev" title="Shift cut point 1 minute earlier">◀ -1m</button>
+          <button type="button" class="eoc-hud-btn" id="eoc-hud-nudge-next" title="Shift cut point 1 minute later">+1m ▶</button>
+        </div>
+      ` : ""}
     `;
+
+    if (isNotLast) {
+      hud.querySelector("#eoc-hud-nudge-prev")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nudgeCurrentCut(-60);
+      });
+      hud.querySelector("#eoc-hud-nudge-next")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nudgeCurrentCut(60);
+      });
+    }
+
     hud.style.display = "flex";
+  }
+
+  function nudgeCurrentCut(deltaSec) {
+    if (!activeRecipe || !activeRecipe.episodes) return;
+    const curTime = activeVideo?.currentTime || netflixCurrentTime || 0;
+    const epIdx = activeRecipe.episodes.findIndex((ep) => {
+      const s = timestampToSeconds(ep.start_time);
+      const e = timestampToSeconds(ep.end_time);
+      return curTime >= s && curTime < e;
+    });
+    if (epIdx < 0 || epIdx >= activeRecipe.episodes.length - 1) return;
+
+    const currentEp = activeRecipe.episodes[epIdx];
+    const nextEp = activeRecipe.episodes[epIdx + 1];
+
+    const currentCutSec = timestampToSeconds(currentEp.end_time);
+    const minAllowed = timestampToSeconds(currentEp.start_time) + 60;
+    const maxAllowed = timestampToSeconds(nextEp.end_time) - 60;
+    const newCutSec = Math.max(minAllowed, Math.min(maxAllowed, currentCutSec + deltaSec));
+    const newTs = secondsToTimestamp(newCutSec);
+
+    currentEp.end_time = newTs;
+    nextEp.start_time = newTs;
+
+    chrome.storage.local.set({ active_recipe: activeRecipe });
+    triggeredEpisodeBreaks.clear();
+    console.log("[EOC] Nudged cut point to:", newTs);
+    updateHud(curTime);
   }
 
   // Main playback monitoring loop
@@ -358,18 +405,51 @@
     }
   });
 
-  // Restore stored recipe on script load
+  const BUILTIN_HOTSTAR_BETHLEHEM = {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: { title: "Bethlehem Kudumba Unit (Hotstar Cut)", year: 2026, runtime_seconds: 6956, imdb_id: "tt31846512", pacing: "comedy" },
+    total_episodes: 4,
+    episodes: [
+      { episode_number: 1, title: "The Angamaly Shift", start_time: "00:00:00", end_time: "00:28:50", cliffhanger_rating: 8.4, break_rationale: "Ashley attends her first Kudumba Unit prayer meeting; spark with Justin ignites.", recap_text: "Ashley relocates to Angamaly and crosses paths with Justin, the charismatic choir coordinator.", teaser_next: "Secret late-night choir rehearsals and scooter rides spark neighborhood gossip." },
+      { episode_number: 2, title: "Rhythms & Rumors", start_time: "00:28:50", end_time: "00:57:40", cliffhanger_rating: 9.1, break_rationale: "Justin confesses feelings before parish feast as elders watch.", recap_text: "Shared love for music fuels their secret romance amidst humorous neighbor encounters.", teaser_next: "An unexpected student visa for Ireland arrives, threatening their future." },
+      { episode_number: 3, title: "The Ireland Dilemma", start_time: "00:57:40", end_time: "01:26:30", cliffhanger_rating: 9.5, break_rationale: "Emotional airport departure, cutting forward to Kerala return.", recap_text: "Torn between Dublin studies and Justin, Ashley leaves as Justin selflessly lets her go.", teaser_next: "Ashley returns to Kerala for a wedding, finding Justin waiting at the church." },
+      { episode_number: 4, title: "Harmonies of Bethlehem", start_time: "01:26:30", end_time: "01:55:56", cliffhanger_rating: 7.8, break_rationale: "Joyful choir wedding performance and heartfelt reconciliation.", recap_text: "Eighteen months after leaving, Ashley confronts past feelings, culminating in a reunion.", teaser_next: "Series finale concludes the heartwarming Malayalam miniseries." }
+    ]
+  };
+
+  function checkAndAutoSelectRecipe() {
+    const url = window.location.href.toLowerCase();
+    const isHotstar = url.includes("hotstar.com");
+    const isBethlehem = url.includes("bethlehem") || url.includes("1271710275") || document.title.toLowerCase().includes("bethlehem");
+
+    if (isHotstar && isBethlehem) {
+      // If we don't have a recipe, or if the current recipe is the obsolete 00:39:15 cut or 9360s runtime:
+      if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 9360 || activeRecipe.episodes?.[0]?.end_time === "00:39:15") {
+        activeRecipe = BUILTIN_HOTSTAR_BETHLEHEM;
+        chrome.storage.local.set({ active_recipe: activeRecipe });
+        triggeredEpisodeBreaks.clear();
+        console.log("[EOC] Automatically migrated active recipe to Bethlehem Kudumba Unit (Hotstar Cut)!");
+      }
+    }
+  }
+
+  // Restore stored recipe on script load and check for auto-upgrade
   chrome.storage.local.get(["active_recipe"], (res) => {
     if (res.active_recipe) {
       activeRecipe = res.active_recipe;
       console.log("[EOC] Restored active recipe from storage:", activeRecipe.meta?.title);
     }
+    checkAndAutoSelectRecipe();
   });
 
   // Initialize
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initVideoObserver);
+    document.addEventListener("DOMContentLoaded", () => {
+      checkAndAutoSelectRecipe();
+      initVideoObserver();
+    });
   } else {
+    checkAndAutoSelectRecipe();
     initVideoObserver();
   }
 })();

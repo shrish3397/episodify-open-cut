@@ -206,3 +206,27 @@
 #eoc-hud-bar .eoc-hud-time {
   color: var(--eoc-text-muted);
 }
+
+.eoc-hud-nudge {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-left: 6px !important;
+}
+
+.eoc-hud-btn {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.eoc-hud-btn:hover {
+  background: var(--eoc-primary) !important;
+  border-color: var(--eoc-primary) !important;
+}
