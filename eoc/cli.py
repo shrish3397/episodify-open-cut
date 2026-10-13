@@ -65,6 +65,7 @@ def handle_cut(args: argparse.Namespace) -> int:
             runtime_seconds=runtime,
             imdb_id=args.imdb,
             episodes_count=args.episodes,
+            target_duration_mins=args.target_duration,
             pacing=args.pacing,
             provider=args.provider,
             gemini_api_key=args.gemini_key,
@@ -230,7 +231,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     cut_parser.add_argument("--year", "-y", type=int, default=2024, help="Release year (default: 2024)")
     cut_parser.add_argument("--runtime", "-r", help="Total movie runtime (seconds or HH:MM:SS)")
     cut_parser.add_argument("--imdb", help="IMDb ID (e.g. tt15398776)")
-    cut_parser.add_argument("--episodes", "-e", type=int, help="Target episode count (default: auto)")
+    cut_parser.add_argument("--episodes", "-e", type=int, help="Target episode count (e.g. 4, 6, 8, etc.)")
+    cut_parser.add_argument(
+        "--target-duration",
+        "-d",
+        type=float,
+        help="Desired target episode length in minutes (e.g. 20, 25, 40)",
+    )
     cut_parser.add_argument(
         "--pacing",
         default="prestige_drama",

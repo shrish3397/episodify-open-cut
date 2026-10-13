@@ -47,17 +47,30 @@ Return ONLY a valid JSON object with the key "episodes".
 """
 
 
-def estimate_episode_count(runtime_seconds: float) -> int:
-    """Recommend an ideal miniseries episode count based on movie runtime."""
+def estimate_episode_count(
+    runtime_seconds: float,
+    target_duration_mins: Optional[float] = None,
+    pacing: str = "prestige_drama",
+) -> int:
+    """Recommend an ideal miniseries episode count based on movie runtime or desired episode length."""
     mins = runtime_seconds / 60.0
-    if mins <= 100:
+    if target_duration_mins and target_duration_mins > 0:
+        return max(2, int(round(mins / target_duration_mins)))
+
+    # Adaptive pacing
+    if pacing in ("fast_pace", "comedy"):
+        # Prefers brisk ~25-30m episodes
+        return max(3, min(12, int(round(mins / 28.0))))
+    elif mins <= 100:
         return 3
     elif mins <= 155:
         return 4
     elif mins <= 210:
         return 5
-    else:
+    elif mins <= 270:
         return 6
+    else:
+        return max(6, int(round(mins / 35.0)))
 
 
 def format_subtitles_for_prompt(cues: List[SubtitleCue], max_cues: int = 2500) -> str:
@@ -90,10 +103,6 @@ class HeuristicAnalyzer:
     ) -> List[Dict[str, Any]]:
         total_time = float(runtime_seconds) if runtime_seconds > 0 else (cues[-1].end_time if cues else 7200.0)
 
-        # Classical 3-act proportions
-        # For 3 episodes: Act I (~28%), Act II (~65%), Act III (100%)
-        # For 4 episodes: Act I (~25%), Act II-A (~50%), Act II-B (~75%), Act III (100%)
-        # For 5 episodes: 20%, 40%, 60%, 80%, 100%
         proportions = []
         for i in range(1, target_episodes):
             proportions.append(i / float(target_episodes))
@@ -104,9 +113,15 @@ class HeuristicAnalyzer:
         thematic_names = [
             ("The Inciting Spark", "A world established is shattered by an irrevocable choice.", 8.2),
             ("Crossing the Rubicon", "Protagonists venture into uncharted danger as stakes escalate.", 8.7),
+            ("Rising Tensions", "New alliances and unexpected obstacles heighten the stakes.", 8.5),
             ("Point of No Return", "Tensions erupt into crisis; the mission faces catastrophic ruin.", 9.4),
+            ("Hidden Fault Lines", "Secrets unravel from within as trust is tested to the breaking point.", 8.9),
+            ("The Midpoint Shakedown", "A game-changing revelation forces everyone to pivot strategy.", 9.3),
+            ("Gathering Shadows", "Hostile forces close in as pressure mounts on every front.", 8.8),
             ("All is Lost", "At the darkest hour, the ultimate confrontation becomes inevitable.", 9.8),
-            ("The Reckoning", "The climax unfolds with irreversible consequences.", 9.1),
+            ("The Final Gamble", "With no options left, a desperate plan is put into motion.", 9.5),
+            ("The Reckoning", "The climax unfolds with irreversible consequences.", 9.6),
+            ("The Calm After", "The dust settles as the cost of victory or defeat is weighed.", 8.1),
             ("Daybreak & Shadows", "The resolution leaves lasting scars and a transformed world.", 7.5),
         ]
 
@@ -290,6 +305,7 @@ def build_episodic_recipe(
     imdb_id: Optional[str] = None,
     tmdb_id: Optional[int] = None,
     episodes_count: Optional[int] = None,
+    target_duration_mins: Optional[float] = None,
     pacing: str = "prestige_drama",
     provider: str = "auto",
     gemini_api_key: Optional[str] = None,
@@ -307,7 +323,9 @@ def build_episodic_recipe(
         else:
             runtime_seconds = 7200
 
-    target_eps = episodes_count or estimate_episode_count(runtime_seconds)
+    target_eps = episodes_count or estimate_episode_count(
+        runtime_seconds, target_duration_mins=target_duration_mins, pacing=pacing
+    )
 
     # Select segmentation engine
     generator_name = "eoc-heuristic"
