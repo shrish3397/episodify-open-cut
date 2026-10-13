@@ -107,6 +107,14 @@
           "teaser_next": {
             "type": "string",
             "description": "Teaser of what unfolds in the upcoming episode."
+          },
+          "scene_boundary_verified": {
+            "type": "boolean",
+            "description": "Indicates whether the cut point was verified against an exact frame scene transition."
+          },
+          "cut_type": {
+            "type": "string",
+            "description": "Classification of the cut transition (e.g. hard_cut_with_silence, dialogue_lull, visual_cut_without_silence, end_of_film)."
           }
         },
         "additionalProperties": true

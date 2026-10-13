@@ -77,6 +77,8 @@ class Episode:
     break_rationale: str
     recap_text: str
     teaser_next: str
+    scene_boundary_verified: bool = False
+    cut_type: str = "dialogue_lull"
 
     @property
     def start_seconds(self) -> float:
@@ -110,6 +112,8 @@ class Episode:
             break_rationale=str(data["break_rationale"]),
             recap_text=str(data["recap_text"]),
             teaser_next=str(data["teaser_next"]),
+            scene_boundary_verified=bool(data.get("scene_boundary_verified", False)),
+            cut_type=str(data.get("cut_type", "dialogue_lull")),
         )
 
 

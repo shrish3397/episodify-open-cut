@@ -29,10 +29,12 @@ except ImportError:
 SYSTEM_INSTRUCTION = """You are an award-winning film editor, television showrunner, and dramaturgist.
 Your task is to transform a feature-length film screenplay/subtitles into a bingeable prestige miniseries.
 
-Rules:
-1. Savor the story: Slices must occur at natural narrative act breaks, suspense climaxes, or compelling cliffhangers.
-2. Target episode runtimes: 25 to 45 minutes each.
-3. Every episode must have:
+STRICT CONSTRAINTS & RULES:
+1. Exact Scene Transitions: Episode target_end_time MUST occur at an EXACT SCENE TRANSITION (e.g., location change, time jump, sequence resolution, or fade to black).
+2. Silence & Dialogue Integrity: DO NOT cut in the middle of an active scene or ongoing conversation. Verify that dialogue has completely stopped before setting the target_end_time timestamp.
+3. Savor the story: Slices must occur at natural narrative act breaks, suspense climaxes, or compelling cliffhangers.
+4. Target episode runtimes: 25 to 45 minutes each.
+5. Every episode must have:
    - episode_number (integer, 1-indexed)
    - title (evocative, cinematic episode title)
    - target_end_time (timestamp in "HH:MM:SS" format where the episode concludes)
@@ -82,6 +84,9 @@ class HeuristicAnalyzer:
         runtime_seconds: int,
         target_episodes: int,
         pacing: str = "prestige_drama",
+        constraint: str = "dialogue_lull",
+        video_path: Optional[str] = None,
+        visual_scene_cuts: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
         total_time = float(runtime_seconds) if runtime_seconds > 0 else (cues[-1].end_time if cues else 7200.0)
 
@@ -109,7 +114,13 @@ class HeuristicAnalyzer:
         for ep_idx in range(1, target_episodes + 1):
             if ep_idx < target_episodes:
                 raw_target = raw_cuts[ep_idx - 1]
-                snap = snap_to_micro_break(cues, raw_target)
+                snap = snap_to_micro_break(
+                    cues,
+                    raw_target,
+                    constraint=constraint,
+                    video_path=video_path,
+                    visual_scene_cuts=visual_scene_cuts,
+                )
                 end_sec = snap.snapped_seconds
             else:
                 end_sec = total_time
@@ -284,6 +295,9 @@ def build_episodic_recipe(
     gemini_api_key: Optional[str] = None,
     ollama_host: str = "http://localhost:11434",
     ollama_model: str = "llama3",
+    constraint: str = "dialogue_lull",
+    video_path: Optional[str] = None,
+    visual_scene_cuts: Optional[List[float]] = None,
 ) -> Recipe:
     """Analyze movie subtitles and assemble a snapped, validated miniseries Recipe."""
     # Compute film duration if not provided
@@ -314,7 +328,15 @@ def build_episodic_recipe(
             # In auto mode, fallback to heuristic if Gemini fails or is unconfigured
             analyzer = HeuristicAnalyzer()
             raw_episodes = analyzer.analyze(
-                cues, title, year, runtime_seconds, target_eps, pacing
+                cues,
+                title,
+                year,
+                runtime_seconds,
+                target_eps,
+                pacing,
+                constraint=constraint,
+                video_path=video_path,
+                visual_scene_cuts=visual_scene_cuts,
             )
             generator_name = "eoc-heuristic"
     elif provider == "ollama":
@@ -326,11 +348,19 @@ def build_episodic_recipe(
     else:
         analyzer = HeuristicAnalyzer()
         raw_episodes = analyzer.analyze(
-            cues, title, year, runtime_seconds, target_eps, pacing
+            cues,
+            title,
+            year,
+            runtime_seconds,
+            target_eps,
+            pacing,
+            constraint=constraint,
+            video_path=video_path,
+            visual_scene_cuts=visual_scene_cuts,
         )
         generator_name = "eoc-heuristic"
 
-    # Stage 2: Micro-Break Snapping to ensure seamless cuts on silence lulls
+    # Stage 2: Micro-Break Snapping to ensure seamless cuts on silence lulls or exact scene transitions
     processed_episodes: List[Episode] = []
     current_start_sec = 0.0
 
@@ -343,6 +373,8 @@ def build_episodic_recipe(
             # Final episode ends at runtime
             end_sec = float(runtime_seconds)
             snapped_ts = seconds_to_timestamp(end_sec)
+            scene_verified = True
+            cut_type = "end_of_film"
         else:
             raw_end = item.get("target_end_time") or item.get("end_time")
             if isinstance(raw_end, str):
@@ -352,10 +384,18 @@ def build_episodic_recipe(
             else:
                 target_sec = (runtime_seconds / num_items) * (i + 1)
 
-            # Snap to silence lull
-            snap = snap_to_micro_break(cues, target_sec)
+            # Snap to silence lull or exact scene transition
+            snap = snap_to_micro_break(
+                cues,
+                target_sec,
+                constraint=constraint,
+                video_path=video_path,
+                visual_scene_cuts=visual_scene_cuts,
+            )
             end_sec = snap.snapped_seconds
             snapped_ts = snap.snapped_timestamp
+            scene_verified = snap.scene_boundary_verified
+            cut_type = snap.cut_type
 
         start_ts = seconds_to_timestamp(current_start_sec)
 
@@ -369,6 +409,8 @@ def build_episodic_recipe(
                 break_rationale=str(item.get("break_rationale", "Dramatic narrative transition.")),
                 recap_text=str(item.get("recap_text", f"Key events of episode {ep_num}.")),
                 teaser_next=str(item.get("teaser_next", "The story continues.")),
+                scene_boundary_verified=scene_verified,
+                cut_type=cut_type,
             )
         )
         current_start_sec = end_sec

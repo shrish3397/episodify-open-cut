@@ -68,6 +68,8 @@ def handle_cut(args: argparse.Namespace) -> int:
             pacing=args.pacing,
             provider=args.provider,
             gemini_api_key=args.gemini_key,
+            constraint=args.constraint,
+            video_path=args.video,
         )
     except Exception as e:
         print(f"❌ Analysis failed: {e}", file=sys.stderr)
@@ -126,10 +128,12 @@ def display_recipe_info(recipe) -> None:
 
     for ep in recipe.episodes:
         stars = "★" * int(round(ep.cliffhanger_rating / 2.0))
+        boundary_flag = "✓ Verified" if ep.scene_boundary_verified else "Estimated"
         print(
             f"\nEpisode {ep.episode_number}: {ep.title}\n"
             f"  Time: {ep.start_time} ➔ {ep.end_time} ({ep.formatted_duration})\n"
             f"  Cliffhanger Rating: {ep.cliffhanger_rating}/10 {stars}\n"
+            f"  Scene Boundary: {boundary_flag} ({ep.cut_type})\n"
             f"  Break Rationale: {ep.break_rationale}\n"
             f"  Recap: {ep.recap_text}\n"
             f"  Teaser: {ep.teaser_next}"
@@ -158,12 +162,15 @@ def handle_snap(args: argparse.Namespace) -> int:
             target_sec,
             window_seconds=args.window,
             min_gap_seconds=args.min_gap,
+            constraint=args.constraint,
+            video_path=args.video,
         )
 
         print(f"🎯 Target Time: {args.time} ({target_sec:.1f}s)")
         print(f"📍 Snapped Time: {res.snapped_timestamp} ({res.snapped_seconds:.1f}s)")
         print(f"⏱️  Adjustment: {res.adjustment_seconds:+.2f}s")
         print(f"🔇 Silence Gap: {res.gap_duration:.2f}s")
+        print(f"🎬 Scene Boundary Verified: {res.scene_boundary_verified} ({res.cut_type})")
         if res.preceding_cue:
             print(f'   Preceding dialogue: "{res.preceding_cue.text}" [{res.preceding_cue.formatted_start()} -> {res.preceding_cue.formatted_end()}]')
         if res.succeeding_cue:
@@ -237,6 +244,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="AI / narrative engine provider (default: auto)",
     )
     cut_parser.add_argument("--gemini-key", help="Google Gemini API key (or set GEMINI_API_KEY env var)")
+    cut_parser.add_argument("--video", help="Optional path to video file for frame-level visual scene boundary detection")
+    cut_parser.add_argument(
+        "--constraint",
+        default="dialogue_lull",
+        choices=["dialogue_lull", "scene_boundary"],
+        help="Boundary snapping constraint (default: dialogue_lull)",
+    )
     cut_parser.add_argument("--output", "-o", help="Output .eoc.json file path")
 
     # Subcommand: validate
@@ -253,6 +267,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     snap_parser.add_argument("--time", required=True, help="Target timestamp (HH:MM:SS or seconds)")
     snap_parser.add_argument("--window", type=float, default=30.0, help="Search window in seconds (default: 30)")
     snap_parser.add_argument("--min-gap", type=float, default=1.5, help="Minimum silence lull in seconds (default: 1.5)")
+    snap_parser.add_argument("--video", help="Optional path to video file (.mp4, .mkv, etc.) for visual frame scene cut detection")
+    snap_parser.add_argument(
+        "--constraint",
+        default="dialogue_lull",
+        choices=["dialogue_lull", "scene_boundary"],
+        help="Boundary snapping constraint (default: dialogue_lull)",
+    )
 
     # Subcommand: export
     exp_parser = subparsers.add_parser("export", help="Export recipe to video chapter format (FFmpeg/MKV/SRT)")

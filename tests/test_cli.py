@@ -57,5 +57,33 @@ class TestCLI(unittest.TestCase):
             self.assertIn("The Angamaly Shift", content)
 
 
+    def test_cli_snap_scene_boundary(self):
+        sample_srt = str(FIXTURES_DIR / "sample.srt")
+        exit_code = main(["snap", sample_srt, "--time", "00:00:25", "--constraint", "scene_boundary"])
+        self.assertEqual(exit_code, 0)
+
+    def test_cli_cut_scene_boundary(self):
+        sample_srt = str(FIXTURES_DIR / "sample.srt")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_file = str(Path(tmp_dir) / "test_cut_scene.eoc.json")
+            exit_code = main([
+                "cut",
+                sample_srt,
+                "--title", "Test Movie",
+                "--year", "2024",
+                "--runtime", "360",
+                "--episodes", "3",
+                "--provider", "heuristic",
+                "--constraint", "scene_boundary",
+                "--output", out_file,
+            ])
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(Path(out_file).exists())
+
+            # Validate generated recipe
+            val_exit = main(["validate", out_file])
+            self.assertEqual(val_exit, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
