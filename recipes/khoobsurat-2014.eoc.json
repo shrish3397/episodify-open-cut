@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Khoobsurat",
+    "year": 2014,
+    "runtime_seconds": 7102,
+    "imdb_id": "tt3554418",
+    "pacing": "comedy",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Part 1: The Royal Whirlwind",
+      "start_time": "00:00:00",
+      "end_time": "00:29:30",
+      "cliffhanger_rating": 8.5,
+      "break_rationale": "Mili arrives at the rigid Sambalpur palace to treat King Shekhar, creating instant comic friction with the strict royal matriarch Nirmala Devi and catching Prince Vikram's attention.",
+      "recap_text": "Quirky physiotherapist Dr. Mili Chakravarty is hired to rehabilitate the stubborn, wheelchair-bound King of Sambalpur, shaking up the austere royal household.",
+      "teaser_next": "Mili's loud, colorful personality challenges Prince Vikram's disciplined royal decorum."
+    },
+    {
+      "episode_number": 2,
+      "title": "Part 2: Breaking the Palace Rules",
+      "start_time": "00:29:30",
+      "end_time": "00:59:15",
+      "cliffhanger_rating": 8.9,
+      "break_rationale": "Mili breaks the palace rules to help Shekhar smile again, while late-night conversations with Vikram ignite an undeniable mutual attraction.",
+      "recap_text": "Mili slowly wins over the depressed King with warmth and games, while sharing humorous late-night encounters with the stoic Prince Vikram.",
+      "teaser_next": "An unexpected desert kidnapping turns palace duty into romantic adventure."
+    },
+    {
+      "episode_number": 3,
+      "title": "Part 3: Desert Confessions",
+      "start_time": "00:59:15",
+      "end_time": "01:28:45",
+      "cliffhanger_rating": 9.3,
+      "break_rationale": "After escaping bungling kidnappers in the Rajasthani desert, Vikram and Mili share an intimate night, only for Vikram's royal engagement to pull them apart.",
+      "recap_text": "Stranded in the desert together, Mili and Vikram let their guards down, but royal duty and societal expectations threaten to crush their bond.",
+      "teaser_next": "The King takes his first steps as Vikram is forced to make an agonizing choice between duty and love."
+    },
+    {
+      "episode_number": 4,
+      "title": "Part 4: The Royal Heart",
+      "start_time": "01:28:45",
+      "end_time": "01:58:22",
+      "cliffhanger_rating": 8.7,
+      "break_rationale": "King Shekhar walks, and Prince Vikram publicly defies palace tradition to run after Mili in Delhi for a joyful, heartwarming royal reunion.",
+      "recap_text": "Having healed the royal family from within, Mili departs heartbroken, prompting Vikram to finally stand up to royal rigidity and follow his heart.",
+      "teaser_next": "Series finale concludes the beloved romantic comedy miniseries cut of Khoobsurat."
+    }
+  ]
+}

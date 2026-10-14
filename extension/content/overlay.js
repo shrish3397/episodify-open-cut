@@ -399,7 +399,7 @@
   // Ensure Shadow DOM Host Container is mounted
   function ensureShadowHost() {
     const parentContainer = document.fullscreenElement ||
-      document.querySelector(".shaka-video-container, .player-container, [data-testid*='player-container'], .video-player") ||
+      document.querySelector(".shaka-video-container, .player-container, [data-testid*='player-container'], .video-player, .webPlayerUIContainer, .rendererContainer, [class*='webPlayer']") ||
       document.body;
 
     if (!hostElement || !parentContainer.contains(hostElement)) {

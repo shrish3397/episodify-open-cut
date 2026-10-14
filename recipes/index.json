@@ -3,6 +3,17 @@
   "updated_at": "2026-10-13T00:00:00Z",
   "registry": [
     {
+      "imdb_id": "tt3554418",
+      "title": "Khoobsurat (4-Episode Miniseries)",
+      "year": 2014,
+      "director": "Shashanka Ghosh",
+      "producers": "Anil Kapoor, Rhea Kapoor, Siddharth Roy Kapur",
+      "runtime_seconds": 7102,
+      "total_episodes": 4,
+      "recipe_file": "khoobsurat-2014.eoc.json",
+      "pacing": "comedy"
+    },
+    {
       "imdb_id": "tt33096053",
       "title": "Sarvam Maya (6-Episode Miniseries)",
       "year": 2025,
