@@ -281,6 +281,7 @@
     // Event listeners
     const continueBtn = container.querySelector("#eoc-continue-movie-btn");
     continueBtn?.addEventListener("click", () => {
+      triggeredEpisodeBreaks.add(episode.episode_number);
       hideOverlay();
       const cur = activeVideo?.currentTime || netflixCurrentTime || 0;
       ignoreCutUntil = cur + 10;
@@ -289,11 +290,17 @@
 
     const nextBtn = container.querySelector("#eoc-next-episode-btn");
     nextBtn?.addEventListener("click", () => {
+      triggeredEpisodeBreaks.add(episode.episode_number);
       hideOverlay();
       if (nextEpisode) {
+        activeRecipe?.episodes?.forEach((other) => {
+          if (other.episode_number <= episode.episode_number) {
+            triggeredEpisodeBreaks.add(other.episode_number);
+          }
+        });
         const targetSec = timestampToSeconds(nextEpisode.start_time);
+        ignoreCutUntil = targetSec + 4.0;
         seekVideo(targetSec + 0.1);
-        ignoreCutUntil = targetSec + 3.0;
         playVideo();
       }
     });
@@ -396,7 +403,7 @@
 
   // Main playback monitoring loop
   function checkPlaybackTime(givenTime) {
-    if (!activeRecipe || !activeRecipe.episodes) return;
+    if (!activeRecipe || !activeRecipe.episodes || isBreakModalActive) return;
     const curTime = typeof givenTime === "number" ? givenTime : (activeVideo?.currentTime || netflixCurrentTime || 0);
 
     updateHud(curTime);
@@ -405,11 +412,11 @@
 
     for (let i = 0; i < activeRecipe.episodes.length; i++) {
       const ep = activeRecipe.episodes[i];
+      const startSec = timestampToSeconds(ep.start_time);
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger break if video reaches within 0.4s of episode cut timestamp or within the 120s buffer
-      // (Guarantees that network buffering or timeupdate throttling never skips the episode end)
-      const isPastOrAtEnd = curTime >= (endSec - 0.4) && curTime < (endSec + 120.0);
+      // Trigger break only when playback naturally hits within 1s before cut up to 3s after cut, within this episode
+      const isPastOrAtEnd = curTime >= (endSec - 1.0) && curTime <= (endSec + 3.0) && curTime >= startSec;
 
       if (isPastOrAtEnd) {
         if (!triggeredEpisodeBreaks.has(ep.episode_number)) {
@@ -436,8 +443,7 @@
       if (activeRecipe?.episodes) {
         triggeredEpisodeBreaks.clear();
         activeRecipe.episodes.forEach((ep) => {
-          // Only mark as triggered if user explicitly scrubbed well beyond the cut point
-          if (cur > timestampToSeconds(ep.end_time) + 3.0) {
+          if (cur >= timestampToSeconds(ep.end_time) - 1.0) {
             triggeredEpisodeBreaks.add(ep.episode_number);
           }
         });
@@ -498,6 +504,14 @@
     if (msg.action === "SET_RECIPE") {
       activeRecipe = msg.recipe;
       triggeredEpisodeBreaks.clear();
+      const cur = activeVideo ? Math.floor(activeVideo.currentTime) : 0;
+      if (activeRecipe?.episodes) {
+        activeRecipe.episodes.forEach((ep) => {
+          if (cur >= timestampToSeconds(ep.end_time) - 1.0) {
+            triggeredEpisodeBreaks.add(ep.episode_number);
+          }
+        });
+      }
       chrome.storage.local.set({ active_recipe: activeRecipe });
       console.log("[EOC] Loaded recipe:", activeRecipe.meta?.title);
       sendResponse({ status: "ok", title: activeRecipe.meta?.title });
@@ -511,9 +525,15 @@
         const ep = activeRecipe.episodes.find((e) => e.episode_number === msg.episode_number);
         if (ep) {
           const targetSec = timestampToSeconds(ep.start_time);
-          seekVideo(targetSec);
-          ignoreCutUntil = targetSec + 3.0;
+          triggeredEpisodeBreaks.clear();
+          activeRecipe.episodes.forEach((other) => {
+            if (other.episode_number < ep.episode_number) {
+              triggeredEpisodeBreaks.add(other.episode_number);
+            }
+          });
           hideOverlay();
+          ignoreCutUntil = targetSec + 4.0;
+          seekVideo(targetSec + 0.1);
           sendResponse({ status: "ok", time: targetSec });
           return true;
         }
@@ -562,16 +582,43 @@
     ]
   };
 
+  const BUILTIN_HOTSTAR_SARVAM_MAYA_6EP = {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "Sarvam Maya (6-Episode Miniseries)",
+      year: 2025,
+      runtime_seconds: 8760,
+      imdb_id: "tt33096053",
+      pacing: "comedy",
+      generator: "eoc-core"
+    },
+    total_episodes: 6,
+    episodes: [
+      { episode_number: 1, title: "Part 1: The Reluctant Priest", start_time: "00:00:00", end_time: "00:24:20", cliffhanger_rating: 8.6, break_rationale: "Struggling atheist musician Prabhendu is forced to return to his ancestral Palakkad roots and don the sacred thread as a temple priest to settle debts.", recap_text: "In debt and failing as an independent musician, Prabhendu abandons city life and reluctantly accepts his family's traditional priesthood.", teaser_next: "An eerie midnight ritual in the ancestral shrine introduces an impossible visitor." },
+      { episode_number: 2, title: "Part 2: The Delulu Phenomenon", start_time: "00:24:20", end_time: "00:48:40", cliffhanger_rating: 9.2, break_rationale: "Prabhendu encounters the eccentric spirit Delulu/Maya, turning his rigid rationalism upside down.", recap_text: "Prabhendu struggles through temple rituals until a young ghost named Maya begins haunting and communicating exclusively with him.", teaser_next: "Maya insists Prabhendu help her fulfill an unfinished earthly longing before she can cross over." },
+      { episode_number: 3, title: "Part 3: Spirits & Sacred Threads", start_time: "00:48:40", end_time: "01:13:00", cliffhanger_rating: 8.9, break_rationale: "Comedic chaos erupts as friend Roopesh suspects Prabhendu is losing his sanity while Maya intervenes in temple pujas.", recap_text: "Prabhendu juggles priestly duties with Maya's unpredictable antics, sparking town gossip and suspicion from Roopesh.", teaser_next: "Maya's past life begins to unravel, revealing a poignant connection to Prabhendu's own musical youth." },
+      { episode_number: 4, title: "Part 4: The Past Awakes", start_time: "01:13:00", end_time: "01:37:20", cliffhanger_rating: 9.5, break_rationale: "A shocking revelation regarding Maya's sudden demise brings Saadhya and Prabhendu into emotional conflict.", recap_text: "As Prabhendu investigates Maya's history, buried secrets about family expectations and unfulfilled promises come to light.", teaser_next: "A crucial confrontation at the ancestral temple festival forces Prabhendu to take a stand." },
+      { episode_number: 5, title: "Part 5: Maya's Truth", start_time: "01:37:20", end_time: "02:01:40", cliffhanger_rating: 9.4, break_rationale: "The truth about Delulu's boundary between life and death is unveiled during an intense spiritual crossroads.", recap_text: "Prabhendu risks his reputation to perform a unique musical ceremony to bring closure to Maya's lingering spirit.", teaser_next: "The final spiritual transition arrives as Prabhendu confronts his own fears and rediscovers his musical soul." },
+      { episode_number: 6, title: "Part 6: Beyond the Illusion", start_time: "02:01:40", end_time: "02:26:00", cliffhanger_rating: 8.3, break_rationale: "Triumphant resolution as Prabhendu finds peace, reconciles his faith with his music, and bids a bittersweet farewell to Maya.", recap_text: "In a moving and humorous climax, Prabhendu harmonizes temple tradition with his musical destiny, transformed by Maya's memory.", teaser_next: "Series finale concludes the supernatural fantasy miniseries cut of Sarvam Maya!" }
+    ]
+  };
+
   function checkAndAutoSelectRecipe() {
     const url = window.location.href.toLowerCase();
-    const isHotstar = url.includes("hotstar.com");
-    const isBethlehem = url.includes("bethlehem") || url.includes("1271710275") || document.title.toLowerCase().includes("bethlehem");
+    const title = document.title.toLowerCase();
+    const combined = url + " " + title;
 
-    if (isHotstar && isBethlehem) {
-      // Auto-assign default Bethlehem Kudumba Unit recipe only if none loaded or runtime is obsolete
-      if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 6956) {
+    if (combined.includes("sarvam") || combined.includes("1271525191")) {
+      if (!activeRecipe || !activeRecipe.meta?.title.toLowerCase().includes("sarvam")) {
+        activeRecipe = BUILTIN_HOTSTAR_SARVAM_MAYA_6EP;
+        chrome.storage.local.set({ active_recipe: activeRecipe, selected_recipe_key: "sarvam-maya" });
+        triggeredEpisodeBreaks.clear();
+        console.log("[EOC] Auto-selected default Sarvam Maya recipe!");
+      }
+    } else if (combined.includes("bethlehem") || combined.includes("1271710275")) {
+      if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 6956 || !activeRecipe.meta?.title.toLowerCase().includes("bethlehem")) {
         activeRecipe = BUILTIN_HOTSTAR_BETHLEHEM_8EP;
-        chrome.storage.local.set({ active_recipe: activeRecipe });
+        chrome.storage.local.set({ active_recipe: activeRecipe, selected_recipe_key: "bethlehem-8ep" });
         triggeredEpisodeBreaks.clear();
         console.log("[EOC] Auto-selected default Bethlehem Kudumba Unit recipe!");
       }

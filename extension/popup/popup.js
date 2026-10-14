@@ -30,6 +30,26 @@ function secondsToTimestamp(sec) {
 
 // Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
+  "sarvam-maya": {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "Sarvam Maya (6-Episode Miniseries)",
+      year: 2025,
+      runtime_seconds: 8760,
+      imdb_id: "tt33096053",
+      pacing: "comedy",
+      generator: "eoc-core"
+    },
+    total_episodes: 6,
+    episodes: [
+      { episode_number: 1, title: "Part 1: The Reluctant Priest", start_time: "00:00:00", end_time: "00:24:20", cliffhanger_rating: 8.6, break_rationale: "Struggling atheist musician Prabhendu is forced to return to his ancestral Palakkad roots and don the sacred thread as a temple priest to settle debts.", recap_text: "In debt and failing as an independent musician, Prabhendu abandons city life and reluctantly accepts his family's traditional priesthood.", teaser_next: "An eerie midnight ritual in the ancestral shrine introduces an impossible visitor." },
+      { episode_number: 2, title: "Part 2: The Delulu Phenomenon", start_time: "00:24:20", end_time: "00:48:40", cliffhanger_rating: 9.2, break_rationale: "Prabhendu encounters the eccentric spirit Delulu/Maya, turning his rigid rationalism upside down.", recap_text: "Prabhendu struggles through temple rituals until a young ghost named Maya begins haunting and communicating exclusively with him.", teaser_next: "Maya insists Prabhendu help her fulfill an unfinished earthly longing before she can cross over." },
+      { episode_number: 3, title: "Part 3: Spirits & Sacred Threads", start_time: "00:48:40", end_time: "01:13:00", cliffhanger_rating: 8.9, break_rationale: "Comedic chaos erupts as friend Roopesh suspects Prabhendu is losing his sanity while Maya intervenes in temple pujas.", recap_text: "Prabhendu juggles priestly duties with Maya's unpredictable antics, sparking town gossip and suspicion from Roopesh.", teaser_next: "Maya's past life begins to unravel, revealing a poignant connection to Prabhendu's own musical youth." },
+      { episode_number: 4, title: "Part 4: The Past Awakes", start_time: "01:13:00", end_time: "01:37:20", cliffhanger_rating: 9.5, break_rationale: "A shocking revelation regarding Maya's sudden demise brings Saadhya and Prabhendu into emotional conflict.", recap_text: "As Prabhendu investigates Maya's history, buried secrets about family expectations and unfulfilled promises come to light.", teaser_next: "A crucial confrontation at the ancestral temple festival forces Prabhendu to take a stand." },
+      { episode_number: 5, title: "Part 5: Maya's Truth", start_time: "01:37:20", end_time: "02:01:40", cliffhanger_rating: 9.4, break_rationale: "The truth about Delulu's boundary between life and death is unveiled during an intense spiritual crossroads.", recap_text: "Prabhendu risks his reputation to perform a unique musical ceremony to bring closure to Maya's lingering spirit.", teaser_next: "The final spiritual transition arrives as Prabhendu confronts his own fears and rediscovers his musical soul." },
+      { episode_number: 6, title: "Part 6: Beyond the Illusion", start_time: "02:01:40", end_time: "02:26:00", cliffhanger_rating: 8.3, break_rationale: "Triumphant resolution as Prabhendu finds peace, reconciles his faith with his music, and bids a bittersweet farewell to Maya.", recap_text: "In a moving and humorous climax, Prabhendu harmonizes temple tradition with his musical destiny, transformed by Maya's memory.", teaser_next: "Series finale concludes the supernatural fantasy miniseries cut of Sarvam Maya!" }
+    ]
+  },
   "bethlehem-8ep": {
     $schema: "https://episodify.org/schema/v1.json",
     meta: {
@@ -467,8 +487,10 @@ function autoDetectMovie(url = "", title = "") {
 
   // 1. Check built-in recipes
   let matchedKey = null;
-  if (combined.includes("bethlehem")) {
-    matchedKey = (combined.includes("hotstar") || combined.includes("1271710275")) ? "bethlehem-hotstar" : "bethlehem";
+  if (combined.includes("sarvam") || combined.includes("1271525191")) {
+    matchedKey = "sarvam-maya";
+  } else if (combined.includes("bethlehem") || combined.includes("1271710275")) {
+    matchedKey = "bethlehem-8ep";
   } else if (combined.includes("batman")) matchedKey = "the-batman";
   else if (combined.includes("dune")) matchedKey = "dune-2";
   else if (combined.includes("endgame") || combined.includes("avengers")) matchedKey = "endgame";
@@ -505,18 +527,10 @@ function tryAutoInject(tab, callback) {
   chrome.scripting.executeScript(
     {
       target: { tabId: tab.id },
-      files: ["content.js"],
+      files: ["content/overlay.js"],
     },
     () => {
-      chrome.scripting.insertCSS(
-        {
-          target: { tabId: tab.id },
-          files: ["overlay.css"],
-        },
-        () => {
-          if (callback) setTimeout(callback, 200);
-        }
-      );
+      if (callback) setTimeout(callback, 200);
     }
   );
 }

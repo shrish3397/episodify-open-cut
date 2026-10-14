@@ -1,0 +1,109 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Sarvam Maya",
+    "year": 2025,
+    "runtime_seconds": 8805,
+    "pacing": "comedy",
+    "generator": "eoc-heuristic"
+  },
+  "total_episodes": 8,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Sarvam Maya: Part 1 - The Inciting Spark",
+      "start_time": "00:00:00",
+      "end_time": "00:17:25",
+      "cliffhanger_rating": 8.2,
+      "break_rationale": "Act break aligned at 00:17:48. A world established is shattered by an irrevocable choice.",
+      "recap_text": "In Episode 1, the narrative builds through central conflicts leading up to the dramatic pause at 00:17:48.",
+      "teaser_next": "Coming up in Episode 2, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 2,
+      "title": "Sarvam Maya: Part 2 - Crossing the Rubicon",
+      "start_time": "00:17:25",
+      "end_time": "00:35:55",
+      "cliffhanger_rating": 8.7,
+      "break_rationale": "Act break aligned at 00:35:55. Protagonists venture into uncharted danger as stakes escalate.",
+      "recap_text": "In Episode 2, the narrative builds through central conflicts leading up to the dramatic pause at 00:35:55.",
+      "teaser_next": "Coming up in Episode 3, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 3,
+      "title": "Sarvam Maya: Part 3 - Rising Tensions",
+      "start_time": "00:35:55",
+      "end_time": "00:53:39",
+      "cliffhanger_rating": 8.5,
+      "break_rationale": "Act break aligned at 00:53:57. New alliances and unexpected obstacles heighten the stakes.",
+      "recap_text": "In Episode 3, the narrative builds through central conflicts leading up to the dramatic pause at 00:53:57.",
+      "teaser_next": "Coming up in Episode 4, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 4,
+      "title": "Sarvam Maya: Part 4 - Point of No Return",
+      "start_time": "00:53:39",
+      "end_time": "01:12:35",
+      "cliffhanger_rating": 9.4,
+      "break_rationale": "Act break aligned at 01:12:35. Tensions erupt into crisis; the mission faces catastrophic ruin.",
+      "recap_text": "In Episode 4, the narrative builds through central conflicts leading up to the dramatic pause at 01:12:35.",
+      "teaser_next": "Coming up in Episode 5, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 5,
+      "title": "Sarvam Maya: Part 5 - Hidden Fault Lines",
+      "start_time": "01:12:35",
+      "end_time": "01:30:57",
+      "cliffhanger_rating": 8.9,
+      "break_rationale": "Act break aligned at 01:30:57. Secrets unravel from within as trust is tested to the breaking point.",
+      "recap_text": "In Episode 5, the narrative builds through central conflicts leading up to the dramatic pause at 01:30:57.",
+      "teaser_next": "Coming up in Episode 6, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 6,
+      "title": "Sarvam Maya: Part 6 - The Midpoint Shakedown",
+      "start_time": "01:30:57",
+      "end_time": "01:49:34",
+      "cliffhanger_rating": 9.3,
+      "break_rationale": "Act break aligned at 01:49:34. A game-changing revelation forces everyone to pivot strategy.",
+      "recap_text": "In Episode 6, the narrative builds through central conflicts leading up to the dramatic pause at 01:49:34.",
+      "teaser_next": "Coming up in Episode 7, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 7,
+      "title": "Sarvam Maya: Part 7 - Gathering Shadows",
+      "start_time": "01:49:34",
+      "end_time": "02:06:13",
+      "cliffhanger_rating": 8.8,
+      "break_rationale": "Act break aligned at 02:06:31. Hostile forces close in as pressure mounts on every front.",
+      "recap_text": "In Episode 7, the narrative builds through central conflicts leading up to the dramatic pause at 02:06:31.",
+      "teaser_next": "Coming up in Episode 8, new alliances and escalating peril emerge.",
+      "scene_boundary_verified": true,
+      "cut_type": "dialogue_lull"
+    },
+    {
+      "episode_number": 8,
+      "title": "Sarvam Maya: Part 8 - The Concluding Reckoning",
+      "start_time": "02:06:13",
+      "end_time": "02:26:45",
+      "cliffhanger_rating": 8.8,
+      "break_rationale": "Act break aligned at 02:26:45. The grand finale brings the full narrative arc and storylines to their complete resolution.",
+      "recap_text": "In Episode 8, the narrative builds through central conflicts leading up to the dramatic pause at 02:26:45.",
+      "teaser_next": "The concluding chapter brings the cinematic arc to its final crescendo.",
+      "scene_boundary_verified": true,
+      "cut_type": "end_of_film"
+    }
+  ]
+}

@@ -3,6 +3,17 @@
   "updated_at": "2026-10-13T00:00:00Z",
   "registry": [
     {
+      "imdb_id": "tt33096053",
+      "title": "Sarvam Maya (6-Episode Miniseries)",
+      "year": 2025,
+      "director": "Akhil Sathyan",
+      "producers": "Cast of Media",
+      "runtime_seconds": 8760,
+      "total_episodes": 6,
+      "recipe_file": "sarvam-maya-2025.eoc.json",
+      "pacing": "comedy"
+    },
+    {
       "imdb_id": "tt31846512",
       "title": "Bethlehem Kudumba Unit (8-Episode Miniseries)",
       "year": 2026,
