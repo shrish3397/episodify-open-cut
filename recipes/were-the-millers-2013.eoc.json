@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "We're the Millers",
+    "year": 2013,
+    "runtime_seconds": 6540,
+    "imdb_id": "tt1723121",
+    "pacing": "comedy",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Part 1: The Fake Family Assembles",
+      "start_time": "00:00:00",
+      "end_time": "00:27:15",
+      "cliffhanger_rating": 8.7,
+      "break_rationale": "David is robbed and forced into a lethal Mexican drug run by Brad Gurdlinger, pitching the fake 'Miller' family scheme to stripper Rose, awkward Kenny, and runaway Casey.",
+      "recap_text": "Denver pot dealer David Clark loses his cash and stash to muggers. To clear his debt with eccentric kingpin Brad Gurdlinger, he rents a giant RV and hires his quirky neighbors to pose as a wholesome vacationing family.",
+      "teaser_next": "The Millers cross the border into Mexico, only to find the shipment is vastly larger and more dangerous than promised."
+    },
+    {
+      "episode_number": 2,
+      "title": "Part 2: A Smidge of Trouble",
+      "start_time": "00:27:15",
+      "end_time": "00:54:30",
+      "cliffhanger_rating": 9.2,
+      "break_rationale": "The Millers pack two tons of cartel weed into their RV and cross the US border, only to break down and get towed by a friendly tourist who turns out to be a DEA agent.",
+      "recap_text": "David realizes Brad tricked him into stealing two tons of weed from cartel kingpin Pablo Chacon. After sweating through border inspection, the RV's radiator blows, forcing them into the company of DEA agent Don Fitzgerald.",
+      "teaser_next": "Cartel henchmen close in as the Millers are cornered at a secluded desert warehouse."
+    },
+    {
+      "episode_number": 3,
+      "title": "Part 3: Spiders & Stripteases",
+      "start_time": "00:54:30",
+      "end_time": "01:21:45",
+      "cliffhanger_rating": 9.5,
+      "break_rationale": "Chacon captures the Millers at gunpoint, prompting Rose's desperate striptease to create an escape, while Kenny suffers a catastrophic tarantula bite.",
+      "recap_text": "Cornered by Pablo Chacon, Rose uses her dancer skills to trigger warehouse fire sprinklers and escape. While fleeing, Kenny is bitten by a venomous spider, landing the fake family in a chaotic Mexican hospital.",
+      "teaser_next": "David tries to take the money and abandon the family, but true loyalty forces a final high-stakes showdown."
+    },
+    {
+      "episode_number": 4,
+      "title": "Part 4: The 4th of July Finale",
+      "start_time": "01:21:45",
+      "end_time": "01:49:00",
+      "cliffhanger_rating": 8.9,
+      "break_rationale": "David chooses his fake family over the drug money, taking down Brad Gurdlinger with the DEA and moving into suburban witness protection as a real family.",
+      "recap_text": "Overcoming petty greed and fireworks standoffs, David reconciles with Rose, Casey, and Kenny to bust Brad Gurdlinger, turning their fake family cover into an authentic, loving home.",
+      "teaser_next": "Series finale concludes the uproarious comedy miniseries cut of We're the Millers."
+    }
+  ]
+}

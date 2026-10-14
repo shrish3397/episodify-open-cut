@@ -3,6 +3,17 @@
   "updated_at": "2026-10-13T00:00:00Z",
   "registry": [
     {
+      "imdb_id": "tt1723121",
+      "title": "We're the Millers (4-Episode Miniseries)",
+      "year": 2013,
+      "director": "Rawson Marshall Thurber",
+      "producers": "Vincent Newman, Tucker Tooley, Happy Walters, Chris Bender",
+      "runtime_seconds": 6540,
+      "total_episodes": 4,
+      "recipe_file": "were-the-millers-2013.eoc.json",
+      "pacing": "comedy"
+    },
+    {
       "imdb_id": "tt3554418",
       "title": "Khoobsurat (4-Episode Miniseries)",
       "year": 2014,

@@ -819,12 +819,37 @@
       ]
     };
 
+    const BUILTIN_NETFLIX_MILLERS_4EP = {
+      $schema: "https://episodify.org/schema/v1.json",
+      meta: {
+        title: "We're the Millers (4-Episode Miniseries)",
+        year: 2013,
+        runtime_seconds: 6540,
+        imdb_id: "tt1723121",
+        pacing: "comedy",
+        generator: "eoc-core"
+      },
+      total_episodes: 4,
+      episodes: [
+        { episode_number: 1, title: "Part 1: The Fake Family Assembles", start_time: "00:00:00", end_time: "00:27:15", cliffhanger_rating: 8.7, break_rationale: "David is robbed and forced into a Mexican drug run, assembling the fake Miller family.", recap_text: "Pot dealer David Clark is forced to clear his debt by smuggling weed from Mexico with a fake family.", teaser_next: "The Millers cross into Mexico, finding the shipment far bigger and more dangerous than promised." },
+        { episode_number: 2, title: "Part 2: A Smidge of Trouble", start_time: "00:27:15", end_time: "00:54:30", cliffhanger_rating: 9.2, break_rationale: "The Millers cross the border with two tons of weed, only to be towed by a friendly DEA agent.", recap_text: "David discovers he stole two tons of cartel weed, sweating through border checks and meeting DEA agent Don.", teaser_next: "Cartel henchmen close in as the Millers are cornered at a secluded warehouse." },
+        { episode_number: 3, title: "Part 3: Spiders & Stripteases", start_time: "00:54:30", end_time: "01:21:45", cliffhanger_rating: 9.5, break_rationale: "Chacon captures the Millers; Rose's striptease creates an escape while Kenny gets a spider bite.", recap_text: "Rose saves the family with an impromptu warehouse dance, while Kenny suffers a venomous spider bite.", teaser_next: "David faces a choice between running with the money or rescuing his fake family." },
+        { episode_number: 4, title: "Part 4: The 4th of July Finale", start_time: "01:21:45", end_time: "01:49:00", cliffhanger_rating: 8.9, break_rationale: "David chooses family over drug money, busting Gurdlinger and entering witness protection together.", recap_text: "Overcoming greed and fireworks showdowns, the Millers bust the kingpin and become a real family.", teaser_next: "Series finale concludes the uproarious comedy miniseries cut of We're the Millers." }
+      ]
+    };
+
     function checkAndAutoSelect() {
       const url = window.location.href.toLowerCase();
       const title = document.title.toLowerCase();
       const combined = url + " " + title;
 
-      if (combined.includes("sarvam") || combined.includes("1271525191")) {
+      if (combined.includes("millers") || combined.includes("70270408")) {
+        if (!activeRecipe || !activeRecipe.meta?.title.toLowerCase().includes("millers")) {
+          setRecipe(BUILTIN_NETFLIX_MILLERS_4EP);
+          chrome.storage?.local?.set({ active_recipe: BUILTIN_NETFLIX_MILLERS_4EP, selected_recipe_key: "were-the-millers" });
+          console.log("[EOC-Shadow] Auto-detected and switched recipe to We're the Millers!");
+        }
+      } else if (combined.includes("sarvam") || combined.includes("1271525191")) {
         if (!activeRecipe || !activeRecipe.meta?.title.toLowerCase().includes("sarvam")) {
           setRecipe(BUILTIN_HOTSTAR_SARVAM_MAYA_6EP);
           chrome.storage?.local?.set({ active_recipe: BUILTIN_HOTSTAR_SARVAM_MAYA_6EP, selected_recipe_key: "sarvam-maya" });
