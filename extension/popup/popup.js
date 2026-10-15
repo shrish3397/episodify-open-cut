@@ -250,7 +250,7 @@ const BUILTIN_RECIPES = {
   }
 };
 
-let currentRecipe = BUILTIN_RECIPES["bethlehem-8ep"];
+let currentRecipe = null;
 let onlineRegistry = [];
 let pendingPublishData = null;
 
@@ -311,8 +311,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                     applyRecipe(generatedRecipe, true);
                   } else {
-                    movieSelect.value = "2-states";
-                    applyRecipe(BUILTIN_RECIPES["2-states"], true);
+                    alert("Please start video playback first so we can detect its runtime, or choose a cut from the dropdown!");
                   }
                 });
               }

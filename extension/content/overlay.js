@@ -952,15 +952,43 @@
       const title = document.title.toLowerCase();
       const combined = url + " " + title;
 
-      const movieTitle = (recipe.meta.title || "").toLowerCase();
-      const cleanTitle = movieTitle.replace(/\(.*?\)/g, "").trim();
-      const words = cleanTitle.split(/\s+/).filter((w) => w.length > 3);
-
-      const titleMatch = words.length > 0 && words.every((w) => combined.includes(w));
+      // 1. Check IMDb ID if present
       const imdbId = (recipe.meta.imdb_id || "").toLowerCase();
-      const imdbMatch = imdbId && combined.includes(imdbId);
+      if (imdbId && combined.includes(imdbId)) {
+        return true;
+      }
 
-      return titleMatch || imdbMatch;
+      // 2. Clean film title (remove parentheticals, episode counts, year)
+      const rawTitle = (recipe.meta.title || "").toLowerCase();
+      const cleanTitle = rawTitle
+        .replace(/\(.*?\)/g, "")
+        .replace(/\[.*?\]/g, "")
+        .replace(/part \d+/g, "")
+        .replace(/miniseries/g, "")
+        .replace(/cut/g, "")
+        .trim();
+
+      if (!cleanTitle || cleanTitle.length < 3) return false;
+
+      // 3. Exact slug check (e.g. "2-states", "were-the-millers")
+      const slug = cleanTitle.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      if (slug && (url.includes(slug) || combined.includes(slug.replace(/-/g, " ")))) {
+        return true;
+      }
+
+      // 4. Multi-word phrase check (must match full phrase, never isolated words like "states")
+      const words = cleanTitle.split(/\s+/).filter((w) => w.length >= 2);
+      if (words.length >= 2) {
+        const phrase = words.join(" ");
+        if (combined.includes(phrase)) return true;
+        const hyphenPhrase = words.join("-");
+        if (combined.includes(hyphenPhrase)) return true;
+        return false;
+      } else if (words.length === 1 && words[0].length >= 5) {
+        return combined.includes(words[0]);
+      }
+
+      return false;
     }
 
     function evaluatePageRecipe() {
