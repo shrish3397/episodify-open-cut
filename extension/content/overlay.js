@@ -718,18 +718,37 @@
     });
   }
 
+  // Clear active recipe and revert to Standby mode
+  function clearRecipe() {
+    activeRecipe = null;
+    triggeredEpisodeBreaks.clear();
+    hideEpisodeBreakModal();
+    if (hudElement) {
+      hudElement.classList.add("hidden");
+      hudElement.innerHTML = "";
+    }
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
+    isBreakActive = false;
+    console.log("[EOC-Shadow] Recipe cleared. Extension in silent Standby mode (native playback untouched).");
+  }
+
   // External / Popup Recipe API
   function setRecipe(recipe) {
+    if (!recipe || !recipe.episodes) {
+      clearRecipe();
+      return;
+    }
     activeRecipe = recipe;
     triggeredEpisodeBreaks.clear();
     const cur = activeVideo ? Math.floor(activeVideo.currentTime) : 0;
-    if (activeRecipe?.episodes) {
-      activeRecipe.episodes.forEach((ep) => {
-        if (cur >= timestampToSeconds(ep.end_time) - 1) {
-          triggeredEpisodeBreaks.add(ep.episode_number);
-        }
-      });
-    }
+    activeRecipe.episodes.forEach((ep) => {
+      if (cur >= timestampToSeconds(ep.end_time) - 1) {
+        triggeredEpisodeBreaks.add(ep.episode_number);
+      }
+    });
     console.log("[EOC-Shadow] Loaded recipe:", recipe.meta?.title);
     if (activeVideo) {
       updateHud(cur);
@@ -740,8 +759,32 @@
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.action === "SET_RECIPE") {
-        setRecipe(msg.recipe);
+        if (msg.recipe) {
+          setRecipe(msg.recipe);
+          if (msg.assignToUrl) {
+            const currentPath = window.location.origin + window.location.pathname;
+            chrome.storage?.local?.get(["url_recipe_map"], (res) => {
+              const map = res?.url_recipe_map || {};
+              map[currentPath] = msg.recipe;
+              chrome.storage?.local?.set({ url_recipe_map: map, active_recipe: msg.recipe });
+            });
+          }
+          sendResponse({ status: "ok", title: msg.recipe.meta?.title });
+        } else {
+          clearRecipe();
+          sendResponse({ status: "ok" });
+        }
+        return true;
+      } else if (msg.action === "CLEAR_RECIPE") {
+        const currentPath = window.location.origin + window.location.pathname;
+        chrome.storage?.local?.get(["url_recipe_map"], (res) => {
+          const map = res?.url_recipe_map || {};
+          delete map[currentPath];
+          chrome.storage?.local?.set({ url_recipe_map: map });
+        });
+        clearRecipe();
         sendResponse({ status: "ok" });
+        return true;
       } else if (msg.action === "JUMP_TO_EPISODE") {
         if (activeRecipe) {
           const ep = activeRecipe.episodes.find((e) => e.episode_number === msg.episode_number);
@@ -767,9 +810,11 @@
           currentTime: v ? v.currentTime : 0,
           duration: v ? v.duration : 0,
           recipeTitle: activeRecipe?.meta?.title || null,
+          recipe: activeRecipe,
           episodesCount: activeRecipe?.episodes?.length || 0,
           pageTitle: document.title,
           url: window.location.href,
+          isStandby: !activeRecipe,
         });
         return true;
       }
@@ -838,40 +883,106 @@
       ]
     };
 
-    function checkAndAutoSelect() {
+    const BUILTIN_HOTSTAR_2STATES_4EP = {
+      $schema: "https://episodify.org/schema/v1.json",
+      meta: {
+        title: "2 States (4-Episode Miniseries)",
+        year: 2014,
+        runtime_seconds: 8940,
+        imdb_id: "tt2372678",
+        pacing: "romance_drama",
+        generator: "eoc-core"
+      },
+      total_episodes: 4,
+      episodes: [
+        { episode_number: 1, title: "Part 1: The Ahmedabad Spark", start_time: "00:00:00", end_time: "00:37:15", cliffhanger_rating: 8.8, break_rationale: "Krish and Ananya fall in love at IIM Ahmedabad, but at Convocation vow to marry only with their parents' full blessing.", recap_text: "Punjabi Krish and Tamilian Ananya fall deeply in love at IIM Ahmedabad, navigating college life and cultural differences.", teaser_next: "Their families meet at Convocation, unleashing an immediate, hostile clash of cultures." },
+        { episode_number: 2, title: "Part 2: Cultural Crossfire", start_time: "00:37:15", end_time: "01:14:30", cliffhanger_rating: 9.4, break_rationale: "An explosive confrontation erupts between Krish's outspoken Punjabi mother and Ananya's traditional Tamil parents during their first formal meeting.", recap_text: "Attempts to bring both families together collapse into regional prejudices and family drama.", teaser_next: "Krish takes a job transfer to Chennai, embarking on a mission to win over Ananya's strict parents." },
+        { episode_number: 3, title: "Part 3: The Chennai Mission", start_time: "01:14:30", end_time: "01:51:45", cliffhanger_rating: 9.3, break_rationale: "Krish wins over Ananya's family in Chennai, but during the family engagement in Delhi, a devastating parental fight breaks the alliance off.", recap_text: "In Chennai, Krish wins over Ananya's father, but the formal engagement in Delhi collapses in mutual insults.", teaser_next: "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final chance to save their love." },
+        { episode_number: 4, title: "Part 4: Two States, One Union", start_time: "01:51:45", end_time: "02:29:00", cliffhanger_rating: 8.5, break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation, reuniting Krish and Ananya for a joyous traditional wedding in Chennai.", recap_text: "Seeing his son's agony, Krish's father travels to Chennai to apologize, bringing the families together in heartwarming unity.", teaser_next: "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States." }
+      ]
+    };
+
+    function doesRecipeMatchPage(recipe) {
+      if (!recipe || !recipe.meta) return false;
       const url = window.location.href.toLowerCase();
       const title = document.title.toLowerCase();
       const combined = url + " " + title;
 
-      if (combined.includes("millers") || combined.includes("70270408")) {
-        if (!activeRecipe || !activeRecipe.meta?.title.toLowerCase().includes("millers")) {
-          setRecipe(BUILTIN_NETFLIX_MILLERS_4EP);
-          chrome.storage?.local?.set({ active_recipe: BUILTIN_NETFLIX_MILLERS_4EP, selected_recipe_key: "were-the-millers" });
-          console.log("[EOC-Shadow] Auto-detected and switched recipe to We're the Millers!");
-        }
-      } else if (combined.includes("sarvam") || combined.includes("1271525191")) {
-        if (!activeRecipe || !activeRecipe.meta?.title.toLowerCase().includes("sarvam")) {
-          setRecipe(BUILTIN_HOTSTAR_SARVAM_MAYA_6EP);
-          chrome.storage?.local?.set({ active_recipe: BUILTIN_HOTSTAR_SARVAM_MAYA_6EP, selected_recipe_key: "sarvam-maya" });
-          console.log("[EOC-Shadow] Auto-detected and switched recipe to Sarvam Maya!");
-        }
-      } else if (combined.includes("bethlehem") || combined.includes("1271710275")) {
-        if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 6956 || !activeRecipe.meta?.title.toLowerCase().includes("bethlehem")) {
-          setRecipe(BUILTIN_HOTSTAR_BETHLEHEM_8EP);
-          chrome.storage?.local?.set({ active_recipe: BUILTIN_HOTSTAR_BETHLEHEM_8EP, selected_recipe_key: "bethlehem-8ep" });
-        }
-      }
+      const movieTitle = (recipe.meta.title || "").toLowerCase();
+      const cleanTitle = movieTitle.replace(/\(.*?\)/g, "").trim();
+      const words = cleanTitle.split(/\s+/).filter((w) => w.length > 3);
+
+      const titleMatch = words.length > 0 && words.every((w) => combined.includes(w));
+      const imdbId = (recipe.meta.imdb_id || "").toLowerCase();
+      const imdbMatch = imdbId && combined.includes(imdbId);
+
+      return titleMatch || imdbMatch;
     }
 
-    chrome.storage?.local?.get(["active_recipe"], (res) => {
-      if (res?.active_recipe) setRecipe(res.active_recipe);
-      checkAndAutoSelect();
-    });
+    function evaluatePageRecipe() {
+      const url = window.location.href.toLowerCase();
+      const title = document.title.toLowerCase();
+      const combined = url + " " + title;
+
+      // 1. Auto-detect if current page is one of our verified built-in cuts
+      if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
+        setRecipe(BUILTIN_HOTSTAR_2STATES_4EP);
+        return;
+      }
+      if (combined.includes("millers") || combined.includes("70270408")) {
+        setRecipe(BUILTIN_NETFLIX_MILLERS_4EP);
+        return;
+      }
+      if (combined.includes("sarvam") || combined.includes("1271525191")) {
+        setRecipe(BUILTIN_HOTSTAR_SARVAM_MAYA_6EP);
+        return;
+      }
+      if (combined.includes("bethlehem") || combined.includes("1271710275")) {
+        setRecipe(BUILTIN_HOTSTAR_BETHLEHEM_8EP);
+        return;
+      }
+
+      // 2. Check if user explicitly assigned a recipe to this URL / path
+      const currentPath = window.location.origin + window.location.pathname;
+      chrome.storage?.local?.get(["url_recipe_map", "active_recipe"], (res) => {
+        const urlMap = res?.url_recipe_map || {};
+        if (urlMap[currentPath]) {
+          console.log("[EOC-Shadow] Restored user-assigned recipe for this URL:", urlMap[currentPath].meta?.title);
+          setRecipe(urlMap[currentPath]);
+          return;
+        }
+
+        // 3. If storage has active_recipe, ONLY accept if it genuinely matches this page
+        if (res?.active_recipe && doesRecipeMatchPage(res.active_recipe)) {
+          console.log("[EOC-Shadow] Verified stored recipe matches current page:", res.active_recipe.meta?.title);
+          setRecipe(res.active_recipe);
+          return;
+        }
+
+        // 4. UNMATCHED VIDEO: Stay in Silent Standby Mode! Zero HUD, zero pauses.
+        clearRecipe();
+      });
+    }
+
+    // Initial check
+    evaluatePageRecipe();
+
+    // Track SPA URL changes (Hotstar, Netflix, YouTube) so navigating away returns to Standby
+    let lastObservedUrl = window.location.href;
+    setInterval(() => {
+      if (window.location.href !== lastObservedUrl) {
+        lastObservedUrl = window.location.href;
+        console.log("[EOC-Shadow] Page URL change detected:", lastObservedUrl);
+        evaluatePageRecipe();
+      }
+    }, 1200);
   }
 
   window.addEventListener("message", (event) => {
     if (event.data?.action === "SET_RECIPE" && event.data.recipe) {
       setRecipe(event.data.recipe);
+    } else if (event.data?.action === "CLEAR_RECIPE") {
+      clearRecipe();
     }
   });
 
@@ -879,6 +990,7 @@
   window.EpisodifyOverlay = {
     init: initEpisodifyOverlay,
     setRecipe: setRecipe,
+    clearRecipe: clearRecipe,
     showModal: showEpisodeBreakModal,
     hideModal: hideEpisodeBreakModal,
     halt: haltVideoPlayback,

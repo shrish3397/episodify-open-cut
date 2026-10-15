@@ -19,6 +19,17 @@
       </div>
     </header>
 
+    <!-- Playback Mode Status Banner -->
+    <section class="mode-banner" id="mode-banner">
+      <div class="mode-info">
+        <span class="mode-pill status-standby" id="mode-pill">⏸️ Standby</span>
+        <span class="mode-desc" id="mode-desc">Normal video playback (no cuts)</span>
+      </div>
+      <button type="button" id="toggle-episodify-btn" class="toggle-btn toggle-btn-enable" title="Toggle Episodify for this video">
+        ⚡ Episodify
+      </button>
+    </section>
+
     <section class="section">
       <div class="section-title-row">
         <label class="section-label" for="movie-select">Select Movie Cut</label>
@@ -26,11 +37,13 @@
       </div>
       <div class="select-wrapper">
         <select id="movie-select" class="movie-select">
-          <option value="auto">✨ Auto-Detect from Player</option>
+          <option value="none" selected>⏸️ Standby (Normal Playback - No Cuts)</option>
+          <option value="auto">✨ Auto-Detect from Current Video</option>
+          <option value="2-states">🎬 2 States (4 Episodes - ~37m each)</option>
           <option value="were-the-millers">🎬 We're the Millers (4 Episodes - ~27m each)</option>
           <option value="khoobsurat">🎬 Khoobsurat (4 Episodes - ~29m each)</option>
           <option value="sarvam-maya">🎬 Sarvam Maya (6 Episodes - ~24m each)</option>
-          <option value="bethlehem-8ep" selected>🎬 Bethlehem Kudumba Unit (8 Episodes - ~19m each)</option>
+          <option value="bethlehem-8ep">🎬 Bethlehem Kudumba Unit (8 Episodes - ~19m each)</option>
           <option value="bethlehem-6ep">🎬 Bethlehem Kudumba Unit (6 Episodes - ~26m each)</option>
           <option value="bethlehem-4ep">Bethlehem Kudumba Unit (4 Episodes - ~39m each)</option>
           <option value="the-batman">The Batman (2022) - 4 Episodes</option>
@@ -52,12 +65,12 @@
 
     <section class="movie-meta-card" id="movie-meta-card">
       <div class="meta-header">
-        <h2 id="meta-title" class="meta-title">Bethlehem Kudumba Unit</h2>
-        <span id="meta-year" class="meta-year">2026</span>
+        <h2 id="meta-title" class="meta-title">Normal Playback Active</h2>
+        <span id="meta-year" class="meta-year"></span>
       </div>
       <div class="meta-sub">
-        <span id="meta-runtime">2h 36m runtime</span> &bull;
-        <span id="meta-episodes-count">4 Episodes</span>
+        <span id="meta-runtime">No pauses or cut cards</span> &bull;
+        <span id="meta-episodes-count">Episodify Standby</span>
       </div>
     </section>
 
@@ -66,7 +79,14 @@
         <span class="section-label">Episodes & Acts</span>
       </div>
       <div id="episodes-list" class="episodes-list">
-        <!-- Rendered dynamically -->
+        <div class="empty-standby-state">
+          <div style="font-size: 26px; margin-bottom: 8px;">⏸️</div>
+          <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Standby Mode Active</div>
+          <div style="color: var(--text-muted); font-size: 11px; line-height: 1.4;">
+            Your video plays normally without interruptions.<br>
+            To slice this video into miniseries episodes, choose a cut above or click <b>⚡ Episodify</b>.
+          </div>
+        </div>
       </div>
     </section>
 

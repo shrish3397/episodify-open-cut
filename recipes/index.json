@@ -36,6 +36,17 @@
       "pacing": "comedy"
     },
     {
+      "imdb_id": "tt2372678",
+      "title": "2 States (4-Episode Miniseries)",
+      "year": 2014,
+      "director": "Abhishek Varman",
+      "producers": "Dharma Productions, Nadiadwala Grandson Entertainment",
+      "runtime_seconds": 8940,
+      "total_episodes": 4,
+      "recipe_file": "2-states-2014.eoc.json",
+      "pacing": "romance_drama"
+    },
+    {
       "imdb_id": "tt31846512",
       "title": "Bethlehem Kudumba Unit (8-Episode Miniseries)",
       "year": 2026,

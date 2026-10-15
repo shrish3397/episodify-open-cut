@@ -499,22 +499,58 @@
     }
   });
 
+  // Clear active recipe and revert to Standby mode
+  function clearRecipe() {
+    activeRecipe = null;
+    triggeredEpisodeBreaks.clear();
+    hideOverlay();
+    if (hudBar) hudBar.style.display = "none";
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
+    isBreakModalActive = false;
+    console.log("[EOC] Recipe cleared. Extension in silent Standby mode (native playback untouched).");
+  }
+
   // Listen for extension popup / background messages
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "SET_RECIPE") {
-      activeRecipe = msg.recipe;
-      triggeredEpisodeBreaks.clear();
-      const cur = activeVideo ? Math.floor(activeVideo.currentTime) : 0;
-      if (activeRecipe?.episodes) {
-        activeRecipe.episodes.forEach((ep) => {
-          if (cur >= timestampToSeconds(ep.end_time) - 1.0) {
-            triggeredEpisodeBreaks.add(ep.episode_number);
-          }
-        });
+      if (msg.recipe) {
+        activeRecipe = msg.recipe;
+        triggeredEpisodeBreaks.clear();
+        const cur = activeVideo ? Math.floor(activeVideo.currentTime) : 0;
+        if (activeRecipe?.episodes) {
+          activeRecipe.episodes.forEach((ep) => {
+            if (cur >= timestampToSeconds(ep.end_time) - 1.0) {
+              triggeredEpisodeBreaks.add(ep.episode_number);
+            }
+          });
+        }
+        if (msg.assignToUrl) {
+          const currentPath = window.location.origin + window.location.pathname;
+          chrome.storage?.local?.get(["url_recipe_map"], (res) => {
+            const map = res?.url_recipe_map || {};
+            map[currentPath] = msg.recipe;
+            chrome.storage?.local?.set({ url_recipe_map: map, active_recipe: msg.recipe });
+          });
+        }
+        console.log("[EOC] Loaded recipe:", activeRecipe.meta?.title);
+        sendResponse({ status: "ok", title: activeRecipe.meta?.title });
+      } else {
+        clearRecipe();
+        sendResponse({ status: "ok" });
       }
-      chrome.storage.local.set({ active_recipe: activeRecipe });
-      console.log("[EOC] Loaded recipe:", activeRecipe.meta?.title);
-      sendResponse({ status: "ok", title: activeRecipe.meta?.title });
+      return true;
+    } else if (msg.action === "CLEAR_RECIPE") {
+      const currentPath = window.location.origin + window.location.pathname;
+      chrome.storage?.local?.get(["url_recipe_map"], (res) => {
+        const map = res?.url_recipe_map || {};
+        delete map[currentPath];
+        chrome.storage?.local?.set({ url_recipe_map: map });
+      });
+      clearRecipe();
+      sendResponse({ status: "ok" });
       return true;
     } else if (msg.action === "JUMP_TO_EPISODE") {
       if (!activeVideo) {
@@ -551,9 +587,11 @@
         currentTime: activeVideo ? activeVideo.currentTime : netflixCurrentTime,
         duration: activeVideo ? activeVideo.duration : 0,
         recipeTitle: activeRecipe?.meta?.title || null,
+        recipe: activeRecipe,
         episodesCount: activeRecipe?.episodes?.length || 0,
         pageTitle: document.title,
         url: window.location.href,
+        isStandby: !activeRecipe,
       });
       return true;
     }
@@ -603,45 +641,134 @@
     ]
   };
 
-  function checkAndAutoSelectRecipe() {
+  const BUILTIN_NETFLIX_MILLERS_4EP = {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "We're the Millers (4-Episode Miniseries)",
+      year: 2013,
+      runtime_seconds: 6540,
+      imdb_id: "tt1723121",
+      pacing: "comedy",
+      generator: "eoc-core"
+    },
+    total_episodes: 4,
+    episodes: [
+      { episode_number: 1, title: "Part 1: The Fake Family Assembles", start_time: "00:00:00", end_time: "00:27:15", cliffhanger_rating: 8.7, break_rationale: "David is robbed and forced into a Mexican drug run, assembling the fake Miller family.", recap_text: "Pot dealer David Clark is forced to clear his debt by smuggling weed from Mexico with a fake family.", teaser_next: "The Millers cross into Mexico, finding the shipment far bigger and more dangerous than promised." },
+      { episode_number: 2, title: "Part 2: A Smidge of Trouble", start_time: "00:27:15", end_time: "00:54:30", cliffhanger_rating: 9.2, break_rationale: "The Millers cross the border with two tons of weed, only to be towed by a friendly DEA agent.", recap_text: "David discovers he stole two tons of cartel weed, sweating through border checks and meeting DEA agent Don.", teaser_next: "Cartel henchmen close in as the Millers are cornered at a secluded warehouse." },
+      { episode_number: 3, title: "Part 3: Spiders & Stripteases", start_time: "00:54:30", end_time: "01:21:45", cliffhanger_rating: 9.5, break_rationale: "Chacon captures the Millers; Rose's striptease creates an escape while Kenny gets a spider bite.", recap_text: "Rose saves the family with an impromptu warehouse dance, while Kenny suffers a venomous spider bite.", teaser_next: "David faces a choice between running with the money or rescuing his fake family." },
+      { episode_number: 4, title: "Part 4: The 4th of July Finale", start_time: "01:21:45", end_time: "01:49:00", cliffhanger_rating: 8.9, break_rationale: "David chooses family over drug money, busting Gurdlinger and entering witness protection together.", recap_text: "Overcoming greed and fireworks showdowns, the Millers bust the kingpin and become a real family.", teaser_next: "Series finale concludes the uproarious comedy miniseries cut of We're the Millers." }
+    ]
+  };
+
+  const BUILTIN_HOTSTAR_2STATES_4EP = {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "2 States (4-Episode Miniseries)",
+      year: 2014,
+      runtime_seconds: 8940,
+      imdb_id: "tt2372678",
+      pacing: "romance_drama",
+      generator: "eoc-core"
+    },
+    total_episodes: 4,
+    episodes: [
+      { episode_number: 1, title: "Part 1: The Ahmedabad Spark", start_time: "00:00:00", end_time: "00:37:15", cliffhanger_rating: 8.8, break_rationale: "Krish and Ananya fall in love at IIM Ahmedabad, but at Convocation vow to marry only with their parents' full blessing.", recap_text: "Punjabi Krish and Tamilian Ananya fall deeply in love at IIM Ahmedabad, navigating college life and cultural differences.", teaser_next: "Their families meet at Convocation, unleashing an immediate, hostile clash of cultures." },
+      { episode_number: 2, title: "Part 2: Cultural Crossfire", start_time: "00:37:15", end_time: "01:14:30", cliffhanger_rating: 9.4, break_rationale: "An explosive confrontation erupts between Krish's outspoken Punjabi mother and Ananya's traditional Tamil parents during their first formal meeting.", recap_text: "Attempts to bring both families together collapse into regional prejudices and family drama.", teaser_next: "Krish takes a job transfer to Chennai, embarking on a mission to win over Ananya's strict parents." },
+      { episode_number: 3, title: "Part 3: The Chennai Mission", start_time: "01:14:30", end_time: "01:51:45", cliffhanger_rating: 9.3, break_rationale: "Krish wins over Ananya's family in Chennai, but during the family engagement in Delhi, a devastating parental fight breaks the alliance off.", recap_text: "In Chennai, Krish wins over Ananya's father, but the formal engagement in Delhi collapses in mutual insults.", teaser_next: "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final chance to save their love." },
+      { episode_number: 4, title: "Part 4: Two States, One Union", start_time: "01:51:45", end_time: "02:29:00", cliffhanger_rating: 8.5, break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation, reuniting Krish and Ananya for a joyous traditional wedding in Chennai.", recap_text: "Seeing his son's agony, Krish's father travels to Chennai to apologize, bringing the families together in heartwarming unity.", teaser_next: "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States." }
+    ]
+  };
+
+  function doesRecipeMatchPage(recipe) {
+    if (!recipe || !recipe.meta) return false;
     const url = window.location.href.toLowerCase();
     const title = document.title.toLowerCase();
     const combined = url + " " + title;
 
-    if (combined.includes("sarvam") || combined.includes("1271525191")) {
-      if (!activeRecipe || !activeRecipe.meta?.title.toLowerCase().includes("sarvam")) {
-        activeRecipe = BUILTIN_HOTSTAR_SARVAM_MAYA_6EP;
-        chrome.storage.local.set({ active_recipe: activeRecipe, selected_recipe_key: "sarvam-maya" });
-        triggeredEpisodeBreaks.clear();
-        console.log("[EOC] Auto-selected default Sarvam Maya recipe!");
-      }
-    } else if (combined.includes("bethlehem") || combined.includes("1271710275")) {
-      if (!activeRecipe || activeRecipe.meta?.runtime_seconds === 6956 || !activeRecipe.meta?.title.toLowerCase().includes("bethlehem")) {
-        activeRecipe = BUILTIN_HOTSTAR_BETHLEHEM_8EP;
-        chrome.storage.local.set({ active_recipe: activeRecipe, selected_recipe_key: "bethlehem-8ep" });
-        triggeredEpisodeBreaks.clear();
-        console.log("[EOC] Auto-selected default Bethlehem Kudumba Unit recipe!");
-      }
-    }
+    const movieTitle = (recipe.meta.title || "").toLowerCase();
+    const cleanTitle = movieTitle.replace(/\(.*?\)/g, "").trim();
+    const words = cleanTitle.split(/\s+/).filter((w) => w.length > 3);
+
+    const titleMatch = words.length > 0 && words.every((w) => combined.includes(w));
+    const imdbId = (recipe.meta.imdb_id || "").toLowerCase();
+    const imdbMatch = imdbId && combined.includes(imdbId);
+
+    return titleMatch || imdbMatch;
   }
 
-  // Restore stored recipe on script load and check for auto-upgrade
-  chrome.storage.local.get(["active_recipe"], (res) => {
-    if (res.active_recipe) {
-      activeRecipe = res.active_recipe;
-      console.log("[EOC] Restored active recipe from storage:", activeRecipe.meta?.title);
+  function evaluatePageRecipe() {
+    const url = window.location.href.toLowerCase();
+    const title = document.title.toLowerCase();
+    const combined = url + " " + title;
+
+    // 1. Auto-detect if current page is one of our verified built-in cuts
+    if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
+      activeRecipe = BUILTIN_HOTSTAR_2STATES_4EP;
+      triggeredEpisodeBreaks.clear();
+      console.log("[EOC] Auto-matched film: 2 States!");
+      return;
     }
-    checkAndAutoSelectRecipe();
-  });
+    if (combined.includes("millers") || combined.includes("70270408")) {
+      activeRecipe = BUILTIN_NETFLIX_MILLERS_4EP;
+      triggeredEpisodeBreaks.clear();
+      console.log("[EOC] Auto-matched film: We're the Millers!");
+      return;
+    }
+    if (combined.includes("sarvam") || combined.includes("1271525191")) {
+      activeRecipe = BUILTIN_HOTSTAR_SARVAM_MAYA_6EP;
+      triggeredEpisodeBreaks.clear();
+      console.log("[EOC] Auto-matched film: Sarvam Maya!");
+      return;
+    }
+    if (combined.includes("bethlehem") || combined.includes("1271710275")) {
+      activeRecipe = BUILTIN_HOTSTAR_BETHLEHEM_8EP;
+      triggeredEpisodeBreaks.clear();
+      console.log("[EOC] Auto-matched film: Bethlehem Kudumba Unit!");
+      return;
+    }
+
+    // 2. Check if user explicitly assigned a recipe to this URL / path
+    const currentPath = window.location.origin + window.location.pathname;
+    chrome.storage?.local?.get(["url_recipe_map", "active_recipe"], (res) => {
+      const urlMap = res?.url_recipe_map || {};
+      if (urlMap[currentPath]) {
+        activeRecipe = urlMap[currentPath];
+        triggeredEpisodeBreaks.clear();
+        console.log("[EOC] Restored user-assigned recipe for this URL:", activeRecipe.meta?.title);
+        return;
+      }
+
+      // 3. If storage has active_recipe, ONLY accept if it genuinely matches this page
+      if (res?.active_recipe && doesRecipeMatchPage(res.active_recipe)) {
+        activeRecipe = res.active_recipe;
+        triggeredEpisodeBreaks.clear();
+        console.log("[EOC] Verified stored recipe matches current page:", activeRecipe.meta?.title);
+        return;
+      }
+
+      // 4. UNMATCHED VIDEO: Stay in Silent Standby Mode! Zero HUD, zero pauses.
+      clearRecipe();
+    });
+  }
 
   // Initialize
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
-      checkAndAutoSelectRecipe();
+      evaluatePageRecipe();
       initVideoObserver();
     });
   } else {
-    checkAndAutoSelectRecipe();
+    evaluatePageRecipe();
     initVideoObserver();
   }
+
+  // Track SPA URL changes (Hotstar, Netflix, YouTube) so navigating away returns to Standby
+  let lastObservedUrl = window.location.href;
+  setInterval(() => {
+    if (window.location.href !== lastObservedUrl) {
+      lastObservedUrl = window.location.href;
+      console.log("[EOC] Page URL change detected:", lastObservedUrl);
+      evaluatePageRecipe();
+    }
+  }, 1200);
 })();

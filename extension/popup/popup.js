@@ -30,6 +30,60 @@ function secondsToTimestamp(sec) {
 
 // Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
+  "2-states": {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "2 States (4-Episode Miniseries)",
+      year: 2014,
+      runtime_seconds: 8940,
+      imdb_id: "tt2372678",
+      pacing: "romance_drama",
+      generator: "eoc-core"
+    },
+    total_episodes: 4,
+    episodes: [
+      {
+        episode_number: 1,
+        title: "Part 1: The Ahmedabad Spark",
+        start_time: "00:00:00",
+        end_time: "00:37:15",
+        cliffhanger_rating: 8.8,
+        break_rationale: "Krish and Ananya fall in love at IIM Ahmedabad, but at Convocation vow to marry only with their parents' full blessing.",
+        recap_text: "Punjabi Krish and Tamilian Ananya fall deeply in love at IIM Ahmedabad, navigating college life and cultural differences.",
+        teaser_next: "Their families meet at Convocation, unleashing an immediate, hostile clash of cultures."
+      },
+      {
+        episode_number: 2,
+        title: "Part 2: Cultural Crossfire",
+        start_time: "00:37:15",
+        end_time: "01:14:30",
+        cliffhanger_rating: 9.4,
+        break_rationale: "An explosive confrontation erupts between Krish's outspoken Punjabi mother and Ananya's traditional Tamil parents during their first formal meeting.",
+        recap_text: "Attempts to bring both families together collapse into regional prejudices and family drama.",
+        teaser_next: "Krish takes a job transfer to Chennai, embarking on a mission to win over Ananya's strict parents."
+      },
+      {
+        episode_number: 3,
+        title: "Part 3: The Chennai Mission",
+        start_time: "01:14:30",
+        end_time: "01:51:45",
+        cliffhanger_rating: 9.3,
+        break_rationale: "Krish wins over Ananya's family in Chennai, but during the family engagement in Delhi, a devastating parental fight breaks the alliance off.",
+        recap_text: "In Chennai, Krish wins over Ananya's father, but the formal engagement in Delhi collapses in mutual insults.",
+        teaser_next: "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final chance to save their love."
+      },
+      {
+        episode_number: 4,
+        title: "Part 4: Two States, One Union",
+        start_time: "01:51:45",
+        end_time: "02:29:00",
+        cliffhanger_rating: 8.5,
+        break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation, reuniting Krish and Ananya for a joyous traditional wedding in Chennai.",
+        recap_text: "Seeing his son's agony, Krish's father travels to Chennai to apologize, bringing the families together in heartwarming unity.",
+        teaser_next: "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States."
+      }
+    ]
+  },
   "were-the-millers": {
     $schema: "https://episodify.org/schema/v1.json",
     meta: {
@@ -204,48 +258,88 @@ document.addEventListener("DOMContentLoaded", () => {
   const movieSelect = document.getElementById("movie-select");
   const fileInput = document.getElementById("custom-file-input");
   const playerStatus = document.getElementById("player-status");
+  const toggleBtn = document.getElementById("toggle-episodify-btn");
 
-  // Check player connection status
+  // Check player connection and synchronize with active tab
   checkActiveTabStatus(playerStatus);
-
-  // Restore stored active recipe or default
-  chrome.storage.local.get(["active_recipe", "selected_recipe_key"], (res) => {
-    const selectedKey = res.selected_recipe_key || movieSelect.value || "bethlehem-8ep";
-    
-    // If the selected key is a built-in recipe, always use the fresh built-in definition
-    if (BUILTIN_RECIPES[selectedKey]) {
-      currentRecipe = BUILTIN_RECIPES[selectedKey];
-      movieSelect.value = selectedKey;
-      applyRecipe(currentRecipe);
-    } else if (res.active_recipe && res.active_recipe.episodes) {
-      if (movieSelect.value === "bethlehem-8ep" && res.active_recipe.total_episodes !== 8) {
-        currentRecipe = BUILTIN_RECIPES["bethlehem-8ep"];
-        applyRecipe(currentRecipe);
-      } else {
-        currentRecipe = res.active_recipe;
-        updateUI();
-      }
-    } else {
-      currentRecipe = BUILTIN_RECIPES["bethlehem-8ep"];
-      movieSelect.value = "bethlehem-8ep";
-      applyRecipe(currentRecipe);
-    }
-  });
 
   // Sync with online Open Registry
   syncOpenRegistry(movieSelect);
 
+  // Toggle Episodify Button (Turn On / Turn Off)
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      if (currentRecipe) {
+        // Active -> Standby
+        detachRecipe();
+      } else {
+        // Standby -> Active
+        const val = movieSelect.value;
+        if (val !== "none" && val !== "auto" && BUILTIN_RECIPES[val]) {
+          applyRecipe(BUILTIN_RECIPES[val], true);
+        } else if (val.startsWith("registry:")) {
+          const fileName = val.replace("registry:", "");
+          loadRecipeFromRegistry(fileName, true);
+        } else {
+          // If "none" or "auto", check current tab status or auto-detect
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tab = tabs[0];
+            if (tab) {
+              const matched = autoDetectMovie(tab.url || "", tab.title || "", true);
+              if (!matched) {
+                // If unlisted movie, query video player duration to generate dynamic 4-act cut!
+                chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (res) => {
+                  if (res && res.duration && res.duration > 300) {
+                    const dur = Math.round(res.duration);
+                    const epDur = Math.round(dur / 4);
+                    const cleanTitle = (tab.title || "Movie").replace(/ - .*$/, "").replace(/^Watch /, "").trim();
+                    const generatedRecipe = {
+                      $schema: "https://episodify.org/schema/v1.json",
+                      meta: {
+                        title: `${cleanTitle} (4-Episode Cut)`,
+                        year: new Date().getFullYear(),
+                        runtime_seconds: dur,
+                        generator: "eoc-auto"
+                      },
+                      total_episodes: 4,
+                      episodes: [
+                        { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: secondsToTimestamp(epDur), cliffhanger_rating: 8.5, break_rationale: "First act turning point.", recap_text: "Initial story setup and character introduction.", teaser_next: "Stakes escalate as main conflict unfolds." },
+                        { episode_number: 2, title: "Part 2: Rising Stakes", start_time: secondsToTimestamp(epDur), end_time: secondsToTimestamp(epDur * 2), cliffhanger_rating: 9.0, break_rationale: "Midpoint crisis.", recap_text: "Tension deepens as obstacles mount.", teaser_next: "A major dilemma tests the protagonists." },
+                        { episode_number: 3, title: "Part 3: The Turning Point", start_time: secondsToTimestamp(epDur * 2), end_time: secondsToTimestamp(epDur * 3), cliffhanger_rating: 9.3, break_rationale: "The lowest point / major crossroads.", recap_text: "All hopes seem dashed before a final breakthrough.", teaser_next: "The grand confrontation arrives." },
+                        { episode_number: 4, title: "Part 4: The Final Resolution", start_time: secondsToTimestamp(epDur * 3), end_time: secondsToTimestamp(dur), cliffhanger_rating: 8.0, break_rationale: "Climax and resolution.", recap_text: "Final showdown and story resolution.", teaser_next: "Series finale concludes the story." }
+                      ]
+                    };
+                    applyRecipe(generatedRecipe, true);
+                  } else {
+                    movieSelect.value = "2-states";
+                    applyRecipe(BUILTIN_RECIPES["2-states"], true);
+                  }
+                });
+              }
+            }
+          });
+        }
+      }
+    });
+  }
+
   // Movie dropdown selection
   movieSelect.addEventListener("change", async (e) => {
     const val = e.target.value;
-    chrome.storage.local.set({ selected_recipe_key: val });
-    if (val === "custom") {
+    if (val === "none") {
+      detachRecipe();
+    } else if (val === "auto") {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tab = tabs[0];
+        if (tab) autoDetectMovie(tab.url || "", tab.title || "", true);
+      });
+    } else if (val === "custom") {
       fileInput.click();
     } else if (val.startsWith("registry:")) {
       const fileName = val.replace("registry:", "");
-      await loadRecipeFromRegistry(fileName);
+      await loadRecipeFromRegistry(fileName, true);
     } else if (BUILTIN_RECIPES[val]) {
-      applyRecipe(BUILTIN_RECIPES[val]);
+      applyRecipe(BUILTIN_RECIPES[val], true);
     }
   });
 
@@ -259,7 +353,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const parsed = JSON.parse(evt.target.result);
         if (parsed.meta && parsed.episodes) {
-          applyRecipe(parsed);
+          applyRecipe(parsed, true);
         } else {
           alert("Invalid .eoc.json recipe: missing meta or episodes.");
         }
@@ -310,12 +404,12 @@ async function syncOpenRegistry(selectEl) {
 }
 
 // Fetch a community recipe by filename over CDN
-async function loadRecipeFromRegistry(recipeFileName) {
+async function loadRecipeFromRegistry(recipeFileName, assignToUrl = false) {
   try {
     const cacheKey = `recipe_${recipeFileName}`;
     const cached = await chrome.storage.local.get([cacheKey]);
     if (cached[cacheKey]) {
-      applyRecipe(cached[cacheKey]);
+      applyRecipe(cached[cacheKey], assignToUrl);
       return;
     }
 
@@ -328,13 +422,13 @@ async function loadRecipeFromRegistry(recipeFileName) {
     saveObj[cacheKey] = recipe;
     chrome.storage.local.set(saveObj);
 
-    applyRecipe(recipe);
+    applyRecipe(recipe, assignToUrl);
   } catch (err) {
     alert("Failed to load community recipe from Open Registry: " + err.message);
   }
 }
 
-function applyRecipe(recipe) {
+function applyRecipe(recipe, assignToUrl = false) {
   currentRecipe = recipe;
   chrome.storage.local.set({ active_recipe: recipe });
   updateUI();
@@ -342,30 +436,105 @@ function applyRecipe(recipe) {
   // Send to active tab
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "SET_RECIPE", recipe: recipe }, () => {
-        if (chrome.runtime.lastError) {
-          // Tab does not have content script running
+      chrome.tabs.sendMessage(
+        tabs[0].id,
+        { action: "SET_RECIPE", recipe: recipe, assignToUrl: assignToUrl },
+        () => {
+          if (chrome.runtime.lastError) {
+            // Tab does not have content script running
+          }
         }
+      );
+    }
+  });
+}
+
+function detachRecipe() {
+  currentRecipe = null;
+  const movieSelect = document.getElementById("movie-select");
+  if (movieSelect) movieSelect.value = "none";
+  chrome.storage.local.remove(["active_recipe"]);
+  updateUI();
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: "CLEAR_RECIPE" }, () => {
+        if (chrome.runtime.lastError) {}
       });
     }
   });
 }
 
 function updateUI() {
-  if (!currentRecipe) return;
+  const modePill = document.getElementById("mode-pill");
+  const modeDesc = document.getElementById("mode-desc");
+  const toggleBtn = document.getElementById("toggle-episodify-btn");
+  const metaTitle = document.getElementById("meta-title");
+  const metaYear = document.getElementById("meta-year");
+  const metaRuntime = document.getElementById("meta-runtime");
+  const metaEpisodesCount = document.getElementById("meta-episodes-count");
+  const listContainer = document.getElementById("episodes-list");
+  const movieSelect = document.getElementById("movie-select");
+
+  if (!currentRecipe) {
+    if (modePill) {
+      modePill.className = "mode-pill status-standby";
+      modePill.textContent = "⏸️ Standby";
+    }
+    if (modeDesc) modeDesc.textContent = "Normal video playback (no cuts)";
+    if (toggleBtn) {
+      toggleBtn.className = "toggle-btn toggle-btn-enable";
+      toggleBtn.textContent = "⚡ Episodify";
+    }
+    if (movieSelect && movieSelect.value !== "custom") {
+      movieSelect.value = "none";
+    }
+    if (metaTitle) metaTitle.textContent = "Normal Playback Active";
+    if (metaYear) metaYear.textContent = "";
+    if (metaRuntime) metaRuntime.textContent = "No pauses or cut cards";
+    if (metaEpisodesCount) metaEpisodesCount.textContent = "Episodify Standby";
+    if (listContainer) {
+      listContainer.innerHTML = `
+        <div class="empty-standby-state">
+          <div style="font-size: 26px; margin-bottom: 8px;">⏸️</div>
+          <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Standby Mode Active</div>
+          <div style="color: var(--text-muted); font-size: 11px; line-height: 1.4;">
+            Your video plays normally without interruptions.<br>
+            To slice this video into miniseries episodes, choose a cut above or click <b>⚡ Episodify</b>.
+          </div>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // Active Recipe State
+  if (modePill) {
+    modePill.className = "mode-pill status-active";
+    modePill.textContent = "🟢 Active";
+  }
+  if (modeDesc) {
+    modeDesc.textContent = `Slicing into ${currentRecipe.episodes?.length || 0} episodes`;
+  }
+  if (toggleBtn) {
+    toggleBtn.className = "toggle-btn toggle-btn-disable";
+    toggleBtn.textContent = "⏹️ Turn Off";
+  }
 
   const meta = currentRecipe.meta || {};
-  document.getElementById("meta-title").textContent = meta.title || "Unknown Film";
-  document.getElementById("meta-year").textContent = meta.year || "";
+  if (metaTitle) metaTitle.textContent = meta.title || "Unknown Film";
+  if (metaYear) metaYear.textContent = meta.year || "";
 
   const runtimeSec = meta.runtime_seconds || 0;
   const hrs = Math.floor(runtimeSec / 3600);
   const mins = Math.floor((runtimeSec % 3600) / 60);
-  document.getElementById("meta-runtime").textContent = `${hrs}h ${mins}m runtime`;
-  document.getElementById("meta-episodes-count").textContent = `${currentRecipe.total_episodes || currentRecipe.episodes?.length || 0} Episodes`;
+  if (metaRuntime) metaRuntime.textContent = `${hrs}h ${mins}m runtime`;
+  if (metaEpisodesCount) {
+    metaEpisodesCount.textContent = `${currentRecipe.total_episodes || currentRecipe.episodes?.length || 0} Episodes`;
+  }
 
-  const listContainer = document.getElementById("episodes-list");
-  listContainer.innerHTML = "";
+  if (listContainer) {
+    listContainer.innerHTML = "";
 
   (currentRecipe.episodes || []).forEach((ep) => {
     const item = document.createElement("div");
@@ -429,6 +598,7 @@ function updateUI() {
 
     listContainer.appendChild(item);
   });
+  }
 }
 
 function nudgeEpisodeStart(epNum, deltaSec) {
@@ -516,14 +686,16 @@ function jumpToEpisode(epNum) {
 }
 
 // Auto-detect movie from page URL or title across built-in & online registry
-function autoDetectMovie(url = "", title = "") {
+function autoDetectMovie(url = "", title = "", autoApply = false) {
   const combined = (url + " " + title).toLowerCase();
   const movieSelect = document.getElementById("movie-select");
-  if (!movieSelect || movieSelect.value === "custom") return;
+  if (!movieSelect || movieSelect.value === "custom") return null;
 
   // 1. Check built-in recipes
   let matchedKey = null;
-  if (combined.includes("millers") || combined.includes("70270408")) {
+  if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
+    matchedKey = "2-states";
+  } else if (combined.includes("millers") || combined.includes("70270408")) {
     matchedKey = "were-the-millers";
   } else if (combined.includes("khoobsurat") || combined.includes("0lm2egozqqutdbb29smpp6mtxr")) {
     matchedKey = "khoobsurat";
@@ -539,9 +711,11 @@ function autoDetectMovie(url = "", title = "") {
 
   if (matchedKey && BUILTIN_RECIPES[matchedKey]) {
     movieSelect.value = matchedKey;
-    applyRecipe(BUILTIN_RECIPES[matchedKey]);
+    if (autoApply) {
+      applyRecipe(BUILTIN_RECIPES[matchedKey], true);
+    }
     console.log("[EOC] Auto-detected built-in cut:", matchedKey);
-    return;
+    return BUILTIN_RECIPES[matchedKey];
   }
 
   // 2. Check online registry
@@ -551,11 +725,15 @@ function autoDetectMovie(url = "", title = "") {
     if (cleanCombined.includes(entrySlug)) {
       const val = `registry:${entry.recipe_file}`;
       movieSelect.value = val;
-      loadRecipeFromRegistry(entry.recipe_file);
+      if (autoApply) {
+        loadRecipeFromRegistry(entry.recipe_file, true);
+      }
       console.log("[EOC] Auto-detected community registry cut:", entry.title);
-      return;
+      return entry;
     }
   }
+
+  return null;
 }
 
 function tryAutoInject(tab, callback) {
@@ -582,13 +760,37 @@ function checkActiveTabStatus(statusEl) {
     const url = tab.url || "";
 
     chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (res) => {
-      if (!chrome.runtime.lastError && res?.hasVideo) {
-        statusEl.classList.add("connected");
-        statusEl.querySelector(".status-text").textContent = "Player Active";
-        statusEl.title = "Connected to active video player!";
+      if (!chrome.runtime.lastError && res) {
+        if (res.hasVideo) {
+          statusEl.classList.add("connected");
+          statusEl.querySelector(".status-text").textContent = "Player Active";
+          statusEl.title = "Connected to active video player!";
+        } else {
+          statusEl.classList.remove("connected");
+          statusEl.querySelector(".status-text").textContent = "No Video Playing";
+        }
 
-        if (res.url || res.pageTitle) {
-          autoDetectMovie(res.url, res.pageTitle);
+        // If the active tab already has an active recipe loaded:
+        if (res.recipe && !res.isStandby) {
+          currentRecipe = res.recipe;
+          const movieSelect = document.getElementById("movie-select");
+          if (movieSelect) {
+            const foundKey = Object.keys(BUILTIN_RECIPES).find(
+              (k) => BUILTIN_RECIPES[k].meta?.title === currentRecipe.meta?.title
+            );
+            if (foundKey) movieSelect.value = foundKey;
+          }
+          updateUI();
+        } else {
+          // Tab is in Standby mode. Only show matched recipe if current page actually matches!
+          const matched = autoDetectMovie(res.url || url, res.pageTitle || tab.title || "", false);
+          if (matched) {
+            currentRecipe = matched;
+            updateUI();
+          } else {
+            currentRecipe = null;
+            updateUI();
+          }
         }
 
         if (res.duration && res.duration > 60 && currentRecipe?.meta?.runtime_seconds) {
@@ -613,11 +815,23 @@ function checkActiveTabStatus(statusEl) {
         // Content script disconnected or not yet injected: auto-inject!
         tryAutoInject(tab, () => {
           chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (retryRes) => {
-            if (!chrome.runtime.lastError && retryRes?.hasVideo) {
-              statusEl.classList.add("connected");
-              statusEl.querySelector(".status-text").textContent = "Player Active";
-              if (retryRes.url || retryRes.pageTitle) {
-                autoDetectMovie(retryRes.url, retryRes.pageTitle);
+            if (!chrome.runtime.lastError && retryRes) {
+              if (retryRes.hasVideo) {
+                statusEl.classList.add("connected");
+                statusEl.querySelector(".status-text").textContent = "Player Active";
+              }
+              if (retryRes.recipe && !retryRes.isStandby) {
+                currentRecipe = retryRes.recipe;
+                updateUI();
+              } else {
+                const matched = autoDetectMovie(retryRes.url || url, retryRes.pageTitle || tab.title || "", false);
+                if (matched) {
+                  currentRecipe = matched;
+                  updateUI();
+                } else {
+                  currentRecipe = null;
+                  updateUI();
+                }
               }
             } else {
               statusEl.classList.remove("connected");
@@ -625,21 +839,19 @@ function checkActiveTabStatus(statusEl) {
                 statusEl.querySelector(".status-text").textContent = "Click Play on Movie";
                 statusEl.title = "Click Play on the movie to open the video player!";
               } else {
-                statusEl.querySelector(".status-text").textContent = "⚠️ Refresh Tab (Cmd+R)";
-                statusEl.title = "Please refresh this tab once to connect the extension.";
+                statusEl.querySelector(".status-text").textContent = "⚠️ Standby / Non-Video";
+                statusEl.title = "No active video detected on this tab.";
               }
+              currentRecipe = null;
+              updateUI();
             }
           });
         });
       } else {
         statusEl.classList.remove("connected");
-        if (url.includes("netflix.com") && !url.includes("/watch/")) {
-          statusEl.querySelector(".status-text").textContent = "Click Play on Movie";
-          statusEl.title = "Click Play on the movie to open the video player!";
-        } else {
-          statusEl.querySelector(".status-text").textContent = "No Video Playing";
-          statusEl.title = "Open and play a movie on Hotstar, Netflix, YouTube, or the demo player to connect.";
-        }
+        statusEl.querySelector(".status-text").textContent = "No Video Playing";
+        currentRecipe = null;
+        updateUI();
       }
     });
   });

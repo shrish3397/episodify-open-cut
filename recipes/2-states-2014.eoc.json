@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "2 States (4-Episode Miniseries)",
+    "year": 2014,
+    "runtime_seconds": 8940,
+    "imdb_id": "tt2372678",
+    "pacing": "romance_drama",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Part 1: The Ahmedabad Spark",
+      "start_time": "00:00:00",
+      "end_time": "00:37:15",
+      "cliffhanger_rating": 8.8,
+      "break_rationale": "Krish and Ananya fall in love during their MBA at IIM Ahmedabad, but at Convocation they vow not to elope, pledging to marry only with both families' full consent.",
+      "recap_text": "Punjabi boy Krish Malhotra and Tamil Brahmin girl Ananya Swaminathan cross paths at IIM Ahmedabad. What begins as late-night study sessions soon blossoms into an intense, secret campus romance.",
+      "teaser_next": "Krish and Ananya introduce their families at Convocation, unleashing an immediate, hostile clash of cultures."
+    },
+    {
+      "episode_number": 2,
+      "title": "Part 2: Cultural Crossfire",
+      "start_time": "00:37:15",
+      "end_time": "01:14:30",
+      "cliffhanger_rating": 9.4,
+      "break_rationale": "An explosive confrontation erupts between Krish's outspoken Punjabi mother Kavita and Ananya's traditional Tamil parents during their first formal meeting.",
+      "recap_text": "Krish moves to Delhi while Ananya begins work in Chennai. Attempts to bring their families together collapse into bitter regional prejudices, with Krish's mother fiercely opposing a South Indian daughter-in-law.",
+      "teaser_next": "Krish takes a job transfer to Chennai, embarking on a determined mission to win over Ananya's strict parents."
+    },
+    {
+      "episode_number": 3,
+      "title": "Part 3: The Chennai Mission",
+      "start_time": "01:14:30",
+      "end_time": "01:51:45",
+      "cliffhanger_rating": 9.3,
+      "break_rationale": "Krish wins over Ananya's family in Chennai, but during the family engagement in Delhi, a devastating fight between their parents breaks the wedding off.",
+      "recap_text": "In Chennai, Krish helps Ananya's brother with IIT coaching and wins over her father with a workplace presentation. The Swaminathans agree to the alliance, traveling to Delhi for the engagement.",
+      "teaser_next": "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final, desperate chance to save their love."
+    },
+    {
+      "episode_number": 4,
+      "title": "Part 4: Two States, One Union",
+      "start_time": "01:51:45",
+      "end_time": "02:29:00",
+      "cliffhanger_rating": 8.5,
+      "break_rationale": "Krish's estranged father makes an unexpected gesture of reconciliation, reuniting Krish and Ananya for a joyous traditional temple wedding in Chennai.",
+      "recap_text": "Devastated by their families' fallout, Krish and Ananya part ways. Seeing his son's agony, Krish's father Vikram travels to Chennai alone to apologize and bring the families together.",
+      "teaser_next": "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States."
+    }
+  ]
+}
