@@ -149,7 +149,7 @@ def find_exact_scene_break(
     target_time_sec: float,
     video_path: Optional[str] = None,
     search_window_sec: float = 60.0,
-    min_gap_sec: float = 1.5,
+    min_gap_sec: float = 3.0,
     visual_scene_cuts: Optional[List[float]] = None,
 ) -> SnapResult:
     """Dual-layer boundary detection: finds visual scene transitions cross-referenced with dialogue silence."""
@@ -229,27 +229,42 @@ def find_exact_scene_break(
     return result
 
 
+def find_candidate_lulls(
+    cues: List[SubtitleCue],
+    target_seconds: float,
+    window_seconds: float = 60.0,
+    min_gap_seconds: float = 3.0,
+) -> List[Tuple[float, float, float, Optional[SubtitleCue], Optional[SubtitleCue]]]:
+    """Find all dialogue silence gaps around target_seconds that satisfy min_gap_seconds."""
+    w_start = max(0.0, target_seconds - window_seconds)
+    w_end = target_seconds + window_seconds
+    gaps = find_silence_gaps(cues, w_start, w_end)
+    return [g for g in gaps if g[2] >= min_gap_seconds]
+
+
 def snap_to_micro_break(
     cues: List[SubtitleCue],
     target_seconds: float,
     window_seconds: float = 30.0,
-    min_gap_seconds: float = 1.5,
+    min_gap_seconds: float = 3.0,
     post_cue_buffer: float = 0.8,
     constraint: str = "dialogue_lull",
     video_path: Optional[str] = None,
     visual_scene_cuts: Optional[List[float]] = None,
+    max_search_window_sec: float = 180.0,
 ) -> SnapResult:
     """Snap a target cut timestamp to the optimal dialogue silence gap or scene boundary.
 
     Args:
         cues: List of subtitle cues sorted by start_time.
         target_seconds: Desired narrative cut point in seconds.
-        window_seconds: Search radius in seconds (default 30s).
-        min_gap_seconds: Preferred minimum dialogue silence length (default 1.5s).
+        window_seconds: Initial search radius in seconds (default 30s).
+        min_gap_seconds: Minimum dialogue silence length for true scene transitions (default 3.0s).
         post_cue_buffer: Buffer added after speech ends to prevent harsh audio cutoff.
         constraint: Snapping mode ("dialogue_lull" or "scene_boundary").
         video_path: Optional video file path for visual frame scene cuts.
         visual_scene_cuts: Optional precomputed visual scene transition timestamps.
+        max_search_window_sec: Maximum search radius when expanding to locate pauses >= min_gap_seconds.
 
     Returns:
         SnapResult containing the snapped timestamp and diagnostic metadata.
@@ -277,28 +292,44 @@ def snap_to_micro_break(
             cut_type="dialogue_lull",
         )
 
-    w_start = max(0.0, target_seconds - window_seconds)
-    w_end = target_seconds + window_seconds
+    # Progressive window expansion: avoid cutting mid-dialogue by widening search
+    # until a genuine silence gap (>= min_gap_seconds) is found.
+    curr_window = window_seconds
+    max_window = max(curr_window, max_search_window_sec)
+    gaps: List[Tuple[float, float, float, Optional[SubtitleCue], Optional[SubtitleCue]]] = []
+    candidates: List[Tuple[float, float, float, Optional[SubtitleCue], Optional[SubtitleCue]]] = []
 
-    gaps = find_silence_gaps(cues, w_start, w_end)
+    while curr_window <= max_window:
+        w_start = max(0.0, target_seconds - curr_window)
+        w_end = target_seconds + curr_window
+        gaps = find_silence_gaps(cues, w_start, w_end)
+        valid_gaps = [g for g in gaps if g[2] >= min_gap_seconds]
+        if valid_gaps:
+            candidates = valid_gaps
+            break
+        if curr_window >= max_window:
+            break
+        curr_window = min(max_window, curr_window + 30.0)
 
-    if not gaps:
-        nearest_cue = min(cues, key=lambda c: abs(c.end_time - target_seconds))
-        snapped = nearest_cue.end_time + post_cue_buffer
-        return SnapResult(
-            original_target=target_seconds,
-            snapped_seconds=snapped,
-            snapped_timestamp=seconds_to_timestamp(snapped),
-            gap_duration=0.0,
-            preceding_cue=nearest_cue,
-            succeeding_cue=None,
-            adjustment_seconds=snapped - target_seconds,
-            scene_boundary_verified=False,
-            cut_type="dialogue_lull",
-        )
-
-    valid_gaps = [g for g in gaps if g[2] >= min_gap_seconds]
-    candidates = valid_gaps if valid_gaps else gaps
+    # If even across max_window no gap >= min_gap_seconds exists,
+    # fall back to the largest available gap
+    if not candidates:
+        if gaps:
+            candidates = sorted(gaps, key=lambda g: g[2], reverse=True)[:5]
+        else:
+            nearest_cue = min(cues, key=lambda c: abs(c.end_time - target_seconds))
+            snapped = nearest_cue.end_time + post_cue_buffer
+            return SnapResult(
+                original_target=target_seconds,
+                snapped_seconds=snapped,
+                snapped_timestamp=seconds_to_timestamp(snapped),
+                gap_duration=0.0,
+                preceding_cue=nearest_cue,
+                succeeding_cue=None,
+                adjustment_seconds=snapped - target_seconds,
+                scene_boundary_verified=False,
+                cut_type="dialogue_lull",
+            )
 
     best_gap = None
     best_score = float("-inf")
@@ -307,16 +338,18 @@ def snap_to_micro_break(
         midpoint = (gap_start + gap_end) / 2.0
         distance = abs(midpoint - target_seconds)
 
-        # Base duration score (rewarding substantial scene transitions up to 6.0s)
-        eff_dur = min(duration, 6.0)
-        if eff_dur >= 4.0:
-            base_score = 12.0 + (eff_dur - 4.0) * 1.5
+        # Base duration score (rewarding substantial scene transitions up to 8.0s)
+        eff_dur = min(duration, 8.0)
+        if eff_dur >= 5.0:
+            base_score = 16.0 + (eff_dur - 5.0) * 1.5
+        elif eff_dur >= 3.5:
+            base_score = 12.0 + (eff_dur - 3.5) * 2.0
         elif eff_dur >= 2.5:
-            base_score = 8.0 + (eff_dur - 2.5) * 2.0
-        elif eff_dur >= 1.5:
-            base_score = 4.0 + (eff_dur - 1.5) * 1.5
+            base_score = 7.0 + (eff_dur - 2.5) * 1.5
+        elif eff_dur >= min_gap_seconds:
+            base_score = 4.0
         else:
-            base_score = max(0.0, eff_dur * 2.0)
+            base_score = max(0.0, eff_dur * 1.0)
 
         # Grammatical & scene boundary indicators
         text_bonus = 0.0

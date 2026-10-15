@@ -18,8 +18,30 @@ Streaming audiences frequently hesitate to commit to a 2.5-hour film on a weekni
 **Episodify Open Cut** bridges this gap:
 * **Analyzes narrative beats** using classical screenplay structure and long-context multimodal AI (*Gemini 3.8 Flash*, local *Ollama*, or deterministic heuristics).
 * **Slices feature films into 25–45 minute bingeable episodes** at organic act breaks and cliffhangers.
-* **Micro-snaps cuts** to dialogue silences ($>1.5\text{s}$ lull) so speech is never cut off mid-sentence.
-* **Seamlessly pauses and overlays native OTT players** (Netflix, Prime Video, Apple TV+, Disney+, Hotstar) via an open metadata overlay protocol without touching, decrypting, or re-hosting copyrighted video streams.
+* **Micro-snaps cuts** to dialogue silences ($\ge 3.0\text{s}$ lull) with active subtitle and speech guards so characters are never cut off mid-dialogue.
+* **Seamlessly pauses and overlays native OTT players** (Hotstar, Netflix, Prime Video, YouTube) via an open metadata overlay protocol without touching, decrypting, or re-hosting copyrighted video streams.
+
+---
+
+## ⚡ Quick Start in 3 Steps (Chrome / Brave / Edge)
+
+No Python setup or coding required to start watching:
+
+1. **Download / Clone this repository**:
+   ```bash
+   git clone https://github.com/shrish3397/episodify-open-cut.git
+   ```
+   *(Or click **Code ➔ Download ZIP** at the top right of this page and unzip it).*
+
+2. **Load into your browser**:
+   - Open `chrome://extensions/` (or `brave://extensions/`, `edge://extensions/`).
+   - Enable **Developer Mode** (toggle in the top-right corner).
+   - Click **Load unpacked** and select the [`extension/`](extension/) directory from this repository.
+   - Pin the **Episodify Open Cut** extension icon to your toolbar.
+
+3. **Open Hotstar or Netflix and enjoy!**
+   - Play any supported movie (like *2 States*, *We're the Millers*, or *The Batman*).
+   - Episodify automatically detects the film, operates in silent standby until an act break arrives, and pauses cleanly between scenes with television-style Cliffhangers, Recaps, and *"Play Next Part"* cards!
 
 ---
 
@@ -120,7 +142,7 @@ An EOC recipe is a lightweight, human-readable JSON document specifying narrativ
 Clone the repository and install locally:
 
 ```bash
-git clone https://github.com/episodify/episodify-open-cut.git
+git clone https://github.com/shrish3397/episodify-open-cut.git
 cd episodify-open-cut
 
 # Install in editable mode
@@ -230,13 +252,18 @@ Test the in-player modal and act break triggers without needing an active OTT su
 
 The `recipes/` directory provides pre-analyzed, validated miniseries cuts for iconic films:
 
-| Film | Year | Episodes | Pacing | Recipe File |
+| Film | Year | Platform | Episodes | Recipe File |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bethlehem Kudumba Unit** | 2026 | 4 | `comedy` | [`recipes/bethlehem-kudumba-unit-2026.eoc.json`](recipes/bethlehem-kudumba-unit-2026.eoc.json) |
-| **The Batman** | 2022 | 4 | `action_thriller` | [`recipes/the-batman-2022.eoc.json`](recipes/the-batman-2022.eoc.json) |
-| **Dune: Part Two** | 2024 | 4 | `epic` | [`recipes/dune-part-two-2024.eoc.json`](recipes/dune-part-two-2024.eoc.json) |
-| **Avengers: Endgame** | 2019 | 4 | `action_thriller` | [`recipes/avengers-endgame-2019.eoc.json`](recipes/avengers-endgame-2019.eoc.json) |
-| **The Godfather** | 1972 | 4 | `prestige_drama` | [`recipes/the-godfather-1972.eoc.json`](recipes/the-godfather-1972.eoc.json) |
+| **2 States** | 2014 | Hotstar | 4 | [`recipes/2-states-2014.eoc.json`](recipes/2-states-2014.eoc.json) |
+| **We're the Millers** | 2013 | Netflix | 4 | [`recipes/were-the-millers-2013.eoc.json`](recipes/were-the-millers-2013.eoc.json) |
+| **Khoobsurat** | 2014 | Prime / Netflix | 4 | [`recipes/khoobsurat-2014.eoc.json`](recipes/khoobsurat-2014.eoc.json) |
+| **Sarvam Maya** | 2026 | Hotstar | 6 | [`recipes/sarvam-maya-2026.eoc.json`](recipes/sarvam-maya-2026.eoc.json) |
+| **Bethlehem Kudumba Unit** | 2026 | Hotstar | 4 / 6 / 8 | [`recipes/bethlehem-kudumba-unit-2026.eoc.json`](recipes/bethlehem-kudumba-unit-2026.eoc.json) |
+| **The Batman** | 2022 | HBO / Prime | 4 | [`recipes/the-batman-2022.eoc.json`](recipes/the-batman-2022.eoc.json) |
+| **Dune: Part Two** | 2024 | Max / Prime | 4 | [`recipes/dune-part-two-2024.eoc.json`](recipes/dune-part-two-2024.eoc.json) |
+| **Avengers: Endgame** | 2019 | Disney+ | 4 | [`recipes/avengers-endgame-2019.eoc.json`](recipes/avengers-endgame-2019.eoc.json) |
+| **The Godfather** | 1972 | Paramount+ | 4 | [`recipes/the-godfather-1972.eoc.json`](recipes/the-godfather-1972.eoc.json) |
+| **Oppenheimer** | 2023 | Prime / Peacock | 4 | [`recipes/oppenheimer-2023.eoc.json`](recipes/oppenheimer-2023.eoc.json) |
 
 ---
 

@@ -3,7 +3,13 @@
 import unittest
 from pathlib import Path
 from eoc.parser import parse_subtitles
-from eoc.snapper import find_exact_scene_break, find_silence_gaps, is_during_dialogue_silence, snap_to_micro_break
+from eoc.snapper import (
+    find_candidate_lulls,
+    find_exact_scene_break,
+    find_silence_gaps,
+    is_during_dialogue_silence,
+    snap_to_micro_break,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -116,6 +122,30 @@ class TestSnapper(unittest.TestCase):
         self.assertEqual(res.snapped_seconds, 26.5)
         self.assertTrue(res.scene_boundary_verified)
         self.assertEqual(res.cut_type, "hard_cut_with_silence")
+
+    def test_avoid_talking_scene_mid_conversation_cuts(self):
+        """Verifies that snapper avoids mid-dialogue gaps (<3.0s) and expands to find a true scene transition pause >= 3.0s."""
+        cues = parse_subtitles(FIXTURES_DIR / "bethlehem_kudumba_unit.srt")
+        # In this scene:
+        # Cues 1-4 are continuous conversation with gaps <= 0.9s (between 15.2s and 35.5s).
+        # Cue 4 ends at 35.5s, followed by a 9.5s silence gap before Cue 5 at 45.0s.
+        res = snap_to_micro_break(
+            cues,
+            target_seconds=24.0,  # inside the rapid dialogue conversation
+            window_seconds=10.0,
+            min_gap_seconds=3.0,
+        )
+        # Must NOT cut inside the dialogue (20.5 - 29.4s), but in the pause >= 3.0s (after 35.5s)
+        self.assertGreaterEqual(res.gap_duration, 3.0)
+        self.assertGreaterEqual(res.snapped_seconds, 35.5)
+        self.assertLessEqual(res.snapped_seconds, 45.0)
+
+    def test_find_candidate_lulls(self):
+        cues = parse_subtitles(FIXTURES_DIR / "bethlehem_kudumba_unit.srt")
+        lulls = find_candidate_lulls(cues, target_seconds=30.0, window_seconds=40.0, min_gap_seconds=3.0)
+        self.assertGreaterEqual(len(lulls), 1)
+        for _, _, dur, _, _ in lulls:
+            self.assertGreaterEqual(dur, 3.0)
 
 
 if __name__ == "__main__":

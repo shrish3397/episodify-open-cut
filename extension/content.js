@@ -401,6 +401,41 @@
     updateHud(curTime);
   }
 
+  // Check if speech or subtitles are currently visible on screen
+  function isSpeechOrSubtitleActive() {
+    if (activeVideo && activeVideo.textTracks) {
+      for (let i = 0; i < activeVideo.textTracks.length; i++) {
+        const t = activeVideo.textTracks[i];
+        if (t.mode !== "disabled" && t.activeCues && t.activeCues.length > 0) {
+          return true;
+        }
+      }
+    }
+
+    const subtitleSelectors = [
+      ".shaka-text-container",
+      "[class*='shaka-text']",
+      "[class*='subtitle']",
+      "[class*='Subtitle']",
+      "[class*='caption']",
+      "[class*='Caption']",
+      ".player-timedtext",
+      ".ytp-caption-segment",
+      ".atvwebplayersdk-captions-text",
+    ];
+
+    for (const sel of subtitleSelectors) {
+      const els = document.querySelectorAll(sel);
+      for (const el of els) {
+        const txt = (el.textContent || "").trim();
+        if (txt.length > 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Main playback monitoring loop
   function checkPlaybackTime(givenTime) {
     if (!activeRecipe || !activeRecipe.episodes || isBreakModalActive) return;
@@ -415,14 +450,20 @@
       const startSec = timestampToSeconds(ep.start_time);
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger break only when playback naturally hits within 1s before cut up to 3s after cut, within this episode
-      const isPastOrAtEnd = curTime >= (endSec - 1.0) && curTime <= (endSec + 3.0) && curTime >= startSec;
+      // Trigger break within 1s before cut up to 20s after cut, within this episode
+      const isPastOrAtEnd = curTime >= (endSec - 1.0) && curTime <= (endSec + 20.0) && curTime >= startSec;
 
       if (isPastOrAtEnd) {
         if (!triggeredEpisodeBreaks.has(ep.episode_number)) {
+          // Never cut mid-sentence while speech or subtitles are displayed!
+          if (isSpeechOrSubtitleActive() && curTime < (endSec + 20.0)) {
+            console.log(`[EOC] Episode ${ep.episode_number} target reached at ${secondsToTimestamp(curTime)}, but dialogue is active. Waiting for clean scene break...`);
+            return;
+          }
+
           triggeredEpisodeBreaks.add(ep.episode_number);
-          console.log(`[EOC] >>> EPISODE ${ep.episode_number} END REACHED at ${secondsToTimestamp(curTime)} (Target: ${ep.end_time})! Pausing playback.`);
-          pauseVideo(endSec);
+          console.log(`[EOC] >>> EPISODE ${ep.episode_number} CLEAN SCENE END at ${secondsToTimestamp(curTime)} (Target: ${ep.end_time})! Pausing playback.`);
+          pauseVideo(curTime);
           const nextEp = activeRecipe.episodes[i + 1] || null;
           showEpisodeBreakModal(ep, nextEp);
           break;
@@ -672,10 +713,10 @@
     },
     total_episodes: 4,
     episodes: [
-      { episode_number: 1, title: "Part 1: The Ahmedabad Spark", start_time: "00:00:00", end_time: "00:37:15", cliffhanger_rating: 8.8, break_rationale: "Krish and Ananya fall in love at IIM Ahmedabad, but at Convocation vow to marry only with their parents' full blessing.", recap_text: "Punjabi Krish and Tamilian Ananya fall deeply in love at IIM Ahmedabad, navigating college life and cultural differences.", teaser_next: "Their families meet at Convocation, unleashing an immediate, hostile clash of cultures." },
-      { episode_number: 2, title: "Part 2: Cultural Crossfire", start_time: "00:37:15", end_time: "01:14:30", cliffhanger_rating: 9.4, break_rationale: "An explosive confrontation erupts between Krish's outspoken Punjabi mother and Ananya's traditional Tamil parents during their first formal meeting.", recap_text: "Attempts to bring both families together collapse into regional prejudices and family drama.", teaser_next: "Krish takes a job transfer to Chennai, embarking on a mission to win over Ananya's strict parents." },
-      { episode_number: 3, title: "Part 3: The Chennai Mission", start_time: "01:14:30", end_time: "01:51:45", cliffhanger_rating: 9.3, break_rationale: "Krish wins over Ananya's family in Chennai, but during the family engagement in Delhi, a devastating parental fight breaks the alliance off.", recap_text: "In Chennai, Krish wins over Ananya's father, but the formal engagement in Delhi collapses in mutual insults.", teaser_next: "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final chance to save their love." },
-      { episode_number: 4, title: "Part 4: Two States, One Union", start_time: "01:51:45", end_time: "02:29:00", cliffhanger_rating: 8.5, break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation, reuniting Krish and Ananya for a joyous traditional wedding in Chennai.", recap_text: "Seeing his son's agony, Krish's father travels to Chennai to apologize, bringing the families together in heartwarming unity.", teaser_next: "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States." }
+      { episode_number: 1, title: "Part 1: The Ahmedabad Spark", start_time: "00:00:00", end_time: "00:39:20", cliffhanger_rating: 8.8, break_rationale: "The Convocation ceremony concludes at IIM Ahmedabad as caps are tossed in the air; Krish and Ananya vow not to elope, parting ways to Delhi and Chennai to convince their families.", recap_text: "Punjabi Krish and Tamilian Ananya fall deeply in love at IIM Ahmedabad, navigating college life and cultural differences.", teaser_next: "Their families meet at Convocation, unleashing an immediate, hostile clash of cultures." },
+      { episode_number: 2, title: "Part 2: Cultural Crossfire", start_time: "00:39:20", end_time: "01:16:30", cliffhanger_rating: 9.4, break_rationale: "Krish transfers to Chennai and wins over the Swaminathan family with his workplace presentation; Ananya's parents agree to the marriage before departing for Delhi.", recap_text: "Attempts to bring both families together collapse into regional prejudices and family drama.", teaser_next: "Krish takes a job transfer to Chennai, embarking on a mission to win over Ananya's strict parents." },
+      { episode_number: 3, title: "Part 3: The Chennai Mission", start_time: "01:16:30", end_time: "01:53:40", cliffhanger_rating: 9.3, break_rationale: "The formal engagement dinner in Delhi erupts into a disastrous family confrontation; heartbroken, Krish and Ananya part ways and break the engagement.", recap_text: "In Chennai, Krish wins over Ananya's father, but the formal engagement in Delhi collapses in mutual insults.", teaser_next: "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final chance to save their love." },
+      { episode_number: 4, title: "Part 4: Two States, One Union", start_time: "01:53:40", end_time: "02:29:00", cliffhanger_rating: 8.5, break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation in Chennai, bringing both families together for a joyous traditional temple wedding.", recap_text: "Seeing his son's agony, Krish's father travels to Chennai to apologize, bringing the families together in heartwarming unity.", teaser_next: "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States." }
     ]
   };
 

@@ -46,39 +46,39 @@ const BUILTIN_RECIPES = {
         episode_number: 1,
         title: "Part 1: The Ahmedabad Spark",
         start_time: "00:00:00",
-        end_time: "00:37:15",
+        end_time: "00:39:20",
         cliffhanger_rating: 8.8,
-        break_rationale: "Krish and Ananya fall in love at IIM Ahmedabad, but at Convocation vow to marry only with their parents' full blessing.",
+        break_rationale: "The Convocation ceremony concludes at IIM Ahmedabad as caps are tossed in the air; Krish and Ananya vow not to elope, parting ways to Delhi and Chennai to convince their families.",
         recap_text: "Punjabi Krish and Tamilian Ananya fall deeply in love at IIM Ahmedabad, navigating college life and cultural differences.",
         teaser_next: "Their families meet at Convocation, unleashing an immediate, hostile clash of cultures."
       },
       {
         episode_number: 2,
         title: "Part 2: Cultural Crossfire",
-        start_time: "00:37:15",
-        end_time: "01:14:30",
+        start_time: "00:39:20",
+        end_time: "01:16:30",
         cliffhanger_rating: 9.4,
-        break_rationale: "An explosive confrontation erupts between Krish's outspoken Punjabi mother and Ananya's traditional Tamil parents during their first formal meeting.",
+        break_rationale: "Krish transfers to Chennai and wins over the Swaminathan family with his workplace presentation; Ananya's parents agree to the marriage before departing for Delhi.",
         recap_text: "Attempts to bring both families together collapse into regional prejudices and family drama.",
         teaser_next: "Krish takes a job transfer to Chennai, embarking on a mission to win over Ananya's strict parents."
       },
       {
         episode_number: 3,
         title: "Part 3: The Chennai Mission",
-        start_time: "01:14:30",
-        end_time: "01:51:45",
+        start_time: "01:16:30",
+        end_time: "01:53:40",
         cliffhanger_rating: 9.3,
-        break_rationale: "Krish wins over Ananya's family in Chennai, but during the family engagement in Delhi, a devastating parental fight breaks the alliance off.",
+        break_rationale: "The formal engagement dinner in Delhi erupts into a disastrous family confrontation; heartbroken, Krish and Ananya part ways and break the engagement.",
         recap_text: "In Chennai, Krish wins over Ananya's father, but the formal engagement in Delhi collapses in mutual insults.",
         teaser_next: "Heartbroken and separated, Krish confronts his estranged father Vikram in Delhi as a final chance to save their love."
       },
       {
         episode_number: 4,
         title: "Part 4: Two States, One Union",
-        start_time: "01:51:45",
+        start_time: "01:53:40",
         end_time: "02:29:00",
         cliffhanger_rating: 8.5,
-        break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation, reuniting Krish and Ananya for a joyous traditional wedding in Chennai.",
+        break_rationale: "Krish's estranged father makes an unexpected gesture of reconciliation in Chennai, bringing both families together for a joyous traditional temple wedding.",
         recap_text: "Seeing his son's agony, Krish's father travels to Chennai to apologize, bringing the families together in heartwarming unity.",
         teaser_next: "Series finale concludes the beloved romantic comedy-drama miniseries cut of 2 States."
       }
@@ -661,6 +661,21 @@ function scaleRecipeToDuration(targetDurationSec) {
   const oldDuration = currentRecipe.meta?.runtime_seconds || timestampToSeconds(currentRecipe.episodes[currentRecipe.episodes.length - 1].end_time);
   if (!oldDuration || oldDuration <= 0) return;
 
+  // Check if this is a built-in verified scene recipe
+  const isBuiltIn = Object.values(BUILTIN_RECIPES).some(
+    (b) => b.meta?.title === currentRecipe.meta?.title
+  );
+
+  // For verified recipes, DO NOT blindly scale internal scene boundaries!
+  // Doing so shifts hand-curated / audio-verified scene transitions into random mid-dialogue lines.
+  if (isBuiltIn) {
+    console.log("[EOC] Preserving verified scene cuts for built-in recipe:", currentRecipe.meta?.title);
+    currentRecipe.meta.runtime_seconds = Math.round(targetDurationSec);
+    currentRecipe.episodes[currentRecipe.episodes.length - 1].end_time = secondsToTimestamp(Math.round(targetDurationSec));
+    applyRecipe(currentRecipe);
+    return;
+  }
+
   const factor = targetDurationSec / oldDuration;
   currentRecipe.meta.runtime_seconds = Math.round(targetDurationSec);
 
@@ -778,7 +793,22 @@ function checkActiveTabStatus(statusEl) {
             const foundKey = Object.keys(BUILTIN_RECIPES).find(
               (k) => BUILTIN_RECIPES[k].meta?.title === currentRecipe.meta?.title
             );
-            if (foundKey) movieSelect.value = foundKey;
+            if (foundKey) {
+              movieSelect.value = foundKey;
+              const builtin = BUILTIN_RECIPES[foundKey];
+              const isOutdated = builtin.episodes && currentRecipe.episodes && (
+                builtin.episodes.length !== currentRecipe.episodes.length ||
+                builtin.episodes.some((bEp, idx) => {
+                  const cEp = currentRecipe.episodes[idx];
+                  return cEp && (cEp.start_time !== bEp.start_time || cEp.end_time !== bEp.end_time);
+                })
+              );
+              if (isOutdated) {
+                console.log("[EOC] Updating stale recipe cuts to verified scene boundaries:", foundKey);
+                currentRecipe = builtin;
+                applyRecipe(builtin);
+              }
+            }
           }
           updateUI();
         } else {
@@ -797,7 +827,10 @@ function checkActiveTabStatus(statusEl) {
           const diff = Math.abs(res.duration - currentRecipe.meta.runtime_seconds);
           const banner = document.getElementById("mismatch-banner");
           if (banner) {
-            if (diff > 180) {
+            const isBuiltIn = Object.values(BUILTIN_RECIPES).some(
+              (b) => b.meta?.title === currentRecipe.meta?.title
+            );
+            if (diff > 180 && !isBuiltIn) {
               const streamDur = secondsToTimestamp(res.duration);
               const recipeDur = secondsToTimestamp(currentRecipe.meta.runtime_seconds);
               document.getElementById("mismatch-text").textContent = `⚠️ Stream is ${streamDur}, recipe is ${recipeDur}.`;
@@ -822,6 +855,28 @@ function checkActiveTabStatus(statusEl) {
               }
               if (retryRes.recipe && !retryRes.isStandby) {
                 currentRecipe = retryRes.recipe;
+                const movieSelect = document.getElementById("movie-select");
+                if (movieSelect) {
+                  const foundKey = Object.keys(BUILTIN_RECIPES).find(
+                    (k) => BUILTIN_RECIPES[k].meta?.title === currentRecipe.meta?.title
+                  );
+                  if (foundKey) {
+                    movieSelect.value = foundKey;
+                    const builtin = BUILTIN_RECIPES[foundKey];
+                    const isOutdated = builtin.episodes && currentRecipe.episodes && (
+                      builtin.episodes.length !== currentRecipe.episodes.length ||
+                      builtin.episodes.some((bEp, idx) => {
+                        const cEp = currentRecipe.episodes[idx];
+                        return cEp && (cEp.start_time !== bEp.start_time || cEp.end_time !== bEp.end_time);
+                      })
+                    );
+                    if (isOutdated) {
+                      console.log("[EOC] Updating stale recipe cuts to verified scene boundaries:", foundKey);
+                      currentRecipe = builtin;
+                      applyRecipe(builtin);
+                    }
+                  }
+                }
                 updateUI();
               } else {
                 const matched = autoDetectMovie(retryRes.url || url, retryRes.pageTitle || tab.title || "", false);

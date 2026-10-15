@@ -11,10 +11,10 @@ from typing import List, Optional
 from eoc import __version__
 from eoc.analyzer import build_episodic_recipe
 from eoc.exporters import export_chapter_srt, export_ffmpeg_metadata, export_mkv_xml
-from eoc.models import timestamp_to_seconds
+from eoc.models import seconds_to_timestamp, timestamp_to_seconds
 from eoc.parser import parse_subtitles
 from eoc.recipe import RecipeValidationError, load_recipe, save_recipe, validate_recipe_data
-from eoc.snapper import snap_to_micro_break
+from eoc.snapper import find_candidate_lulls, snap_to_micro_break
 
 try:
     from dotenv import load_dotenv
@@ -71,6 +71,7 @@ def handle_cut(args: argparse.Namespace) -> int:
             gemini_api_key=args.gemini_key,
             constraint=args.constraint,
             video_path=args.video,
+            min_gap_seconds=args.min_gap,
         )
     except Exception as e:
         print(f"❌ Analysis failed: {e}", file=sys.stderr)
@@ -170,12 +171,26 @@ def handle_snap(args: argparse.Namespace) -> int:
         print(f"🎯 Target Time: {args.time} ({target_sec:.1f}s)")
         print(f"📍 Snapped Time: {res.snapped_timestamp} ({res.snapped_seconds:.1f}s)")
         print(f"⏱️  Adjustment: {res.adjustment_seconds:+.2f}s")
-        print(f"🔇 Silence Gap: {res.gap_duration:.2f}s")
+        print(f"🔇 Silence Gap: {res.gap_duration:.2f}s (Min constraint: >= {args.min_gap:.1f}s)")
         print(f"🎬 Scene Boundary Verified: {res.scene_boundary_verified} ({res.cut_type})")
         if res.preceding_cue:
             print(f'   Preceding dialogue: "{res.preceding_cue.text}" [{res.preceding_cue.formatted_start()} -> {res.preceding_cue.formatted_end()}]')
         if res.succeeding_cue:
             print(f'   Succeeding dialogue: "{res.succeeding_cue.text}" [{res.succeeding_cue.formatted_start()} -> {res.succeeding_cue.formatted_end()}]')
+
+        candidate_lulls = find_candidate_lulls(
+            cues,
+            target_sec,
+            window_seconds=max(args.window, 60.0),
+            min_gap_seconds=args.min_gap,
+        )
+        if len(candidate_lulls) > 1:
+            print(f"\n🔍 Found {len(candidate_lulls)} candidate pauses >= {args.min_gap:.1f}s nearby:")
+            for start, end, dur, p_c, n_c in candidate_lulls[:6]:
+                is_selected = res.preceding_cue and abs(start - res.preceding_cue.end_time) < 0.1
+                marker = "⭐ [SELECTED]" if is_selected else "  "
+                p_text = f'"{p_c.text[:30]}..."' if p_c else "[Beginning]"
+                print(f"   {marker} {seconds_to_timestamp(start)} -> {seconds_to_timestamp(end)} (Lull: {dur:.1f}s) after {p_text}")
         return 0
     except Exception as e:
         print(f"❌ Snap failed: {e}", file=sys.stderr)
@@ -258,6 +273,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         choices=["dialogue_lull", "scene_boundary"],
         help="Boundary snapping constraint (default: dialogue_lull)",
     )
+    cut_parser.add_argument(
+        "--min-gap",
+        type=float,
+        default=3.0,
+        help="Minimum dialogue silence pause in seconds for cuts (default: 3.0)",
+    )
     cut_parser.add_argument("--output", "-o", help="Output .eoc.json file path")
 
     # Subcommand: validate
@@ -273,7 +294,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     snap_parser.add_argument("subtitles", help="Path to .srt or .vtt subtitle file")
     snap_parser.add_argument("--time", required=True, help="Target timestamp (HH:MM:SS or seconds)")
     snap_parser.add_argument("--window", type=float, default=30.0, help="Search window in seconds (default: 30)")
-    snap_parser.add_argument("--min-gap", type=float, default=1.5, help="Minimum silence lull in seconds (default: 1.5)")
+    snap_parser.add_argument("--min-gap", type=float, default=3.0, help="Minimum silence lull in seconds (default: 3.0)")
     snap_parser.add_argument("--video", help="Optional path to video file (.mp4, .mkv, etc.) for visual frame scene cut detection")
     snap_parser.add_argument(
         "--constraint",

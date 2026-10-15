@@ -101,6 +101,7 @@ class HeuristicAnalyzer:
         constraint: str = "dialogue_lull",
         video_path: Optional[str] = None,
         visual_scene_cuts: Optional[List[float]] = None,
+        min_gap_seconds: float = 3.0,
     ) -> List[Dict[str, Any]]:
         total_time = float(runtime_seconds) if runtime_seconds > 0 else (cues[-1].end_time if cues else 7200.0)
 
@@ -141,7 +142,7 @@ class HeuristicAnalyzer:
                     cues,
                     raw_target,
                     window_seconds=search_win,
-                    min_gap_seconds=1.5,
+                    min_gap_seconds=min_gap_seconds,
                     constraint=constraint,
                     video_path=video_path,
                     visual_scene_cuts=visual_scene_cuts,
@@ -329,6 +330,7 @@ def build_episodic_recipe(
     constraint: str = "dialogue_lull",
     video_path: Optional[str] = None,
     visual_scene_cuts: Optional[List[float]] = None,
+    min_gap_seconds: float = 3.0,
 ) -> Recipe:
     """Analyze movie subtitles and assemble a snapped, validated miniseries Recipe."""
     # Compute film duration if not provided
@@ -370,6 +372,7 @@ def build_episodic_recipe(
                 constraint=constraint,
                 video_path=video_path,
                 visual_scene_cuts=visual_scene_cuts,
+                min_gap_seconds=min_gap_seconds,
             )
             generator_name = "eoc-heuristic"
     elif provider == "ollama":
@@ -390,6 +393,7 @@ def build_episodic_recipe(
             constraint=constraint,
             video_path=video_path,
             visual_scene_cuts=visual_scene_cuts,
+            min_gap_seconds=min_gap_seconds,
         )
         generator_name = "eoc-heuristic"
 
@@ -417,10 +421,11 @@ def build_episodic_recipe(
             else:
                 target_sec = (runtime_seconds / num_items) * (i + 1)
 
-            # Snap to silence lull or exact scene transition
+            # Snap to silence lull (>= min_gap_seconds) or exact scene transition
             snap = snap_to_micro_break(
                 cues,
                 target_sec,
+                min_gap_seconds=min_gap_seconds,
                 constraint=constraint,
                 video_path=video_path,
                 visual_scene_cuts=visual_scene_cuts,
