@@ -94,12 +94,87 @@
 
     <footer class="footer">
       <div class="footer-actions">
+        <button id="open-ai-modal-btn" class="footer-btn footer-btn-ai">
+          🤖 Episodify with Gemini AI
+        </button>
         <button id="open-curate-btn" class="footer-btn">
-          📤 Publish a Cut to Registry
+          📤 Publish Cut to Registry
         </button>
       </div>
       <div class="footer-sub">Zero-DRM Community Protocol &bull; AGPL-3.0</div>
     </footer>
+  </div>
+
+  <!-- AI Miniseries Generator Modal -->
+  <div id="ai-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="ai-badge-title">
+          <span class="ai-chip">Gemini 3.8 Flash</span>
+          <h3 class="modal-title">AI Miniseries Generator</h3>
+        </div>
+        <button id="close-ai-modal-btn" class="modal-close">&times;</button>
+      </div>
+      <p class="modal-desc">
+        Slice any video into an episodic miniseries using AI narrative beat detection, cliffhanger ratings, and scene continuity.
+      </p>
+
+      <div class="ai-film-banner" id="ai-film-banner">
+        <div class="ai-film-row">
+          <span class="ai-film-label">Movie:</span>
+          <span id="ai-film-title" class="ai-film-val">Detecting player...</span>
+        </div>
+        <div class="ai-film-row">
+          <span class="ai-film-label">Runtime:</span>
+          <span id="ai-film-runtime" class="ai-film-val">Detecting duration...</span>
+        </div>
+        <div class="ai-film-row">
+          <span class="ai-film-label">Subtitles:</span>
+          <span id="ai-captions-status" class="ai-captions-badge">Checking text tracks...</span>
+        </div>
+      </div>
+
+      <div class="ai-form-group">
+        <label class="ai-form-label" for="ai-episodes-select">Episodes to Generate</label>
+        <select id="ai-episodes-select" class="movie-select">
+          <option value="4" selected>4 Episodes (Standard ~30-45m Acts)</option>
+          <option value="3">3 Episodes (Feature Trilogy ~45-60m Acts)</option>
+          <option value="5">5 Episodes (Short Binge ~25-35m Acts)</option>
+          <option value="6">6 Episodes (Mini-Chapters ~20-25m Acts)</option>
+        </select>
+      </div>
+
+      <div class="ai-form-group">
+        <div class="ai-label-row">
+          <label class="ai-form-label" for="gemini-key-input">Google Gemini API Key</label>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="ai-key-link">Get Free Key ↗</a>
+        </div>
+        <div class="ai-key-input-wrapper">
+          <input type="password" id="gemini-key-input" placeholder="Paste AIzaSy... key" class="ai-key-input">
+          <button type="button" id="save-key-btn" class="ai-key-save-btn">Save</button>
+        </div>
+        <div id="key-saved-hint" class="ai-saved-hint" style="display: none;">✓ Key saved securely in your browser</div>
+      </div>
+
+      <!-- Optional Subtitle File Upload -->
+      <div class="ai-subs-section">
+        <button type="button" id="ai-select-subs-btn" class="modal-action-btn modal-action-btn-secondary">
+          📄 Optional: Upload Custom Subtitles (.srt / .vtt)
+        </button>
+        <input type="file" id="ai-subs-file-input" accept=".srt,.vtt,.txt" style="display: none;">
+        <div id="ai-subs-filename" class="ai-subs-tag" style="display: none;"></div>
+      </div>
+
+      <!-- Progress & Status Container -->
+      <div id="ai-progress-box" class="ai-progress-box" style="display: none;">
+        <div class="ai-spinner"></div>
+        <div id="ai-progress-text" class="ai-progress-text">Analyzing narrative beats with Gemini...</div>
+      </div>
+
+      <button type="button" id="start-ai-generate-btn" class="modal-action-btn modal-action-btn-primary">
+        ⚡ Slice Movie with Gemini AI
+      </button>
+    </div>
   </div>
 
   <!-- Curator Submission Modal -->

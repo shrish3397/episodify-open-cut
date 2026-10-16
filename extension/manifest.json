@@ -39,7 +39,8 @@
     "*://127.0.0.1/*",
     "file:///*",
     "https://raw.githubusercontent.com/*",
-    "https://cdn.jsdelivr.net/*"
+    "https://cdn.jsdelivr.net/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"

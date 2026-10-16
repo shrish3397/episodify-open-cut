@@ -896,6 +896,40 @@
           isStandby: !activeRecipe,
         });
         return true;
+      } else if (msg.action === "EXTRACT_SUBTITLES") {
+        const v = findBestVideoElement();
+        const detectedDuration = detectMovieDurationFromPage(v);
+        const cues = [];
+
+        if (v && v.textTracks) {
+          for (let i = 0; i < v.textTracks.length; i++) {
+            const track = v.textTracks[i];
+            if (track.cues && track.cues.length > 0) {
+              for (let j = 0; j < track.cues.length; j++) {
+                const c = track.cues[j];
+                const clean = (c.text || "").replace(/<[^>]+>/g, "").trim();
+                if (clean) {
+                  cues.push({
+                    start: Math.round(c.startTime),
+                    end: Math.round(c.endTime),
+                    text: clean
+                  });
+                }
+              }
+              if (cues.length > 50) break;
+            }
+          }
+        }
+
+        sendResponse({
+          hasSubtitles: cues.length > 10,
+          cuesCount: cues.length,
+          cues: cues.slice(0, 2500),
+          duration: detectedDuration || (v && Number.isFinite(v.duration) ? Math.round(v.duration) : 0),
+          pageTitle: getRealMovieTitle() || document.title,
+          url: window.location.href,
+        });
+        return true;
       }
     });
 

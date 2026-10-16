@@ -39,9 +39,19 @@ No Python setup or coding required to start watching:
    - Click **Load unpacked** and select the [`extension/`](extension/) directory from this repository.
    - Pin the **Episodify Open Cut** extension icon to your toolbar.
 
-3. **Open Hotstar or Netflix and enjoy!**
-   - Play any supported movie (like *2 States*, *We're the Millers*, or *The Batman*).
+3. **Open Hotstar, Netflix, or Prime Video and enjoy!**
+   - Play any supported movie (like *Queen*, *Laapataa Ladies*, *2 States*, *We're the Millers*, or *The Batman*).
    - Episodify automatically detects the film, operates in silent standby until an act break arrives, and pauses cleanly between scenes with television-style Cliffhangers, Recaps, and *"Play Next Part"* cards!
+
+### 🤖 Slicing ANY New / Uncataloged Movie with In-Browser Gemini AI (Zero-Terminal)
+Want to episodify an uncataloged movie on Netflix, Prime Video, Hotstar, or YouTube?
+1. Open and play the movie on your streaming tab.
+2. Click the **Episodify** extension icon in your browser toolbar.
+3. Click **🤖 Episodify with Gemini AI** in the popup footer.
+4. Paste your free Google Gemini API key (get one in 10 seconds at [Google AI Studio](https://aistudio.google.com/app/apikey)) — saved securely in your local browser storage.
+5. Select your desired episode count (3 to 6 episodes) and click **⚡ Slice Movie with Gemini AI**.
+6. Gemini analyzes the screenplay narrative structure, dialogue transitions, and dramatic cliffhangers, instantly transforming your movie into a miniseries playing right in your browser!
+7. *(Optional)* Click **📤 Publish Cut to Registry** to share your new cut with the global Episodify community via a 1-click GitHub Pull Request.
 
 ---
 

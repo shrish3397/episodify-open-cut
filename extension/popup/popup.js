@@ -489,6 +489,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Setup Curator Publishing Modal
   setupCuratorModal();
+
+  // Setup Gemini AI In-Extension Slicer Modal
+  setupAiSlicerModal();
 });
 
 // Synchronize recipes with the decentralized Open Registry
@@ -1154,3 +1157,512 @@ function setupCuratorModal() {
     modal.style.display = "none";
   });
 }
+
+// Clean movie titles from video streaming headers/footers
+function cleanMovieTitle(title) {
+  if (!title) return "Feature Film";
+  let t = title
+    .replace(/^Watch\s+/i, "")
+    .replace(/^Prime Video:\s*/i, "")
+    .replace(/\s*\|\s*Prime Video.*$/i, "")
+    .replace(/\s*-\s*Prime Video.*$/i, "")
+    .replace(/\s*\|\s*Netflix.*$/i, "")
+    .replace(/\s*-\s*Netflix.*$/i, "")
+    .replace(/\s*on Disney\+ Hotstar.*$/i, "")
+    .replace(/\s*-\s*Disney\+ Hotstar.*$/i, "")
+    .replace(/\s*-\s*YouTube.*$/i, "")
+    .replace(/\s*\|\s*YouTube.*$/i, "")
+    .replace(/ - Google Chrome$/i, "")
+    .trim();
+
+  // Strip parenthetical year or resolution tags if present
+  t = t.replace(/\s*\(\d{4}\).*$/, "").replace(/\s*\[.*?\]$/, "").trim();
+
+  const generic = [
+    "netflix",
+    "prime video",
+    "primevideo",
+    "hotstar",
+    "disney+ hotstar",
+    "youtube",
+    "home",
+    "watch",
+    "video",
+    "movie",
+    "feature film",
+  ];
+  if (!t || generic.includes(t.toLowerCase())) {
+    return "Feature Film";
+  }
+  return t;
+}
+
+// Parse standard .srt or .vtt subtitle files into timestamped cues
+function parseSrtOrVtt(content) {
+  if (!content) return [];
+  const lines = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const cues = [];
+  const timeRegex = /(?:(\d{1,2}):)?(\d{2}):(\d{2})[,\.](\d{1,3})\s*-->\s*(?:(\d{1,2}):)?(\d{2}):(\d{2})[,\.](\d{1,3})/;
+
+  let currentCue = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      if (currentCue && currentCue.text) {
+        cues.push(currentCue);
+        currentCue = null;
+      }
+      continue;
+    }
+
+    const match = line.match(timeRegex);
+    if (match) {
+      if (currentCue && currentCue.text) {
+        cues.push(currentCue);
+      }
+      const startH = parseInt(match[1] || "0", 10);
+      const startM = parseInt(match[2], 10);
+      const startS = parseInt(match[3], 10);
+      const startMs = parseInt(match[4].padEnd(3, "0").slice(0, 3), 10);
+      const startSec = startH * 3600 + startM * 60 + startS + startMs / 1000;
+
+      const endH = parseInt(match[5] || "0", 10);
+      const endM = parseInt(match[6], 10);
+      const endS = parseInt(match[7], 10);
+      const endMs = parseInt(match[8].padEnd(3, "0").slice(0, 3), 10);
+      const endSec = endH * 3600 + endM * 60 + endS + endMs / 1000;
+
+      currentCue = {
+        start: Math.round(startSec),
+        end: Math.round(endSec),
+        text: "",
+      };
+    } else if (currentCue) {
+      if (/^\d+$/.test(line)) continue; // Subtitle index number
+      if (line.startsWith("NOTE") || line.startsWith("WEBVTT")) continue;
+      const clean = line.replace(/<[^>]+>/g, "").trim();
+      if (clean) {
+        currentCue.text = currentCue.text ? currentCue.text + " " + clean : clean;
+      }
+    }
+  }
+  if (currentCue && currentCue.text) {
+    cues.push(currentCue);
+  }
+  return cues;
+}
+
+// Clean and enforce continuity on Gemini output for .eoc.json compliance
+function cleanAndValidateRecipe(raw, fallbackTitle, durationSec, numEpisodes) {
+  const meta = {
+    title: raw.title || raw.meta?.title || `${fallbackTitle} (${numEpisodes}-Episode Miniseries)`,
+    year: raw.year || raw.meta?.year || new Date().getFullYear(),
+    runtime_seconds: durationSec,
+    imdb_id: raw.imdb_id || raw.meta?.imdb_id || "",
+    pacing: raw.pacing || raw.meta?.pacing || "drama",
+    generator: "gemini-flash-ai",
+  };
+
+  const rawEpisodes = raw.episodes || [];
+  if (!Array.isArray(rawEpisodes) || rawEpisodes.length === 0) {
+    throw new Error("Gemini returned no episodes in the response.");
+  }
+
+  rawEpisodes.sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0));
+
+  const validEpisodes = [];
+  const total = rawEpisodes.length;
+  const targetDur = secondsToTimestamp(durationSec);
+
+  for (let i = 0; i < total; i++) {
+    const rawEp = rawEpisodes[i];
+    const epNum = i + 1;
+    const isFirst = i === 0;
+    const isLast = i === total - 1;
+
+    let startTime = isFirst ? "00:00:00" : validEpisodes[i - 1].end_time;
+    let endTime = rawEp.end_time;
+
+    if (!endTime || !endTime.includes(":")) {
+      const fallbackSec = Math.round((durationSec / total) * epNum);
+      endTime = secondsToTimestamp(fallbackSec);
+    }
+    if (isLast) {
+      endTime = targetDur;
+    }
+
+    const startSec = timestampToSeconds(startTime);
+    let endSec = timestampToSeconds(endTime);
+    if (endSec <= startSec) {
+      endSec = isLast ? durationSec : startSec + Math.round(durationSec / total);
+      endTime = secondsToTimestamp(endSec);
+    }
+
+    const rating = Math.min(9.9, Math.max(7.0, parseFloat(rawEp.cliffhanger_rating) || 8.5));
+
+    validEpisodes.push({
+      episode_number: epNum,
+      title: rawEp.title || `Part ${epNum}: Chapter ${epNum}`,
+      start_time: startTime,
+      end_time: endTime,
+      cliffhanger_rating: Math.round(rating * 10) / 10,
+      break_rationale: rawEp.break_rationale || `Key narrative act break for Part ${epNum}.`,
+      recap_text: rawEp.recap_text || `Previously on ${fallbackTitle}...`,
+      teaser_next: rawEp.teaser_next || `Coming up in Part ${epNum + 1}...`,
+    });
+  }
+
+  // Enforce zero-gap continuity
+  validEpisodes[0].start_time = "00:00:00";
+  for (let i = 1; i < validEpisodes.length; i++) {
+    validEpisodes[i].start_time = validEpisodes[i - 1].end_time;
+  }
+  validEpisodes[validEpisodes.length - 1].end_time = targetDur;
+
+  return {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: meta,
+    total_episodes: validEpisodes.length,
+    episodes: validEpisodes,
+  };
+}
+
+// Call Google Gemini REST API to slice film into miniseries
+async function generateAiCutWithGemini({ apiKey, movieTitle, durationSec, numEpisodes, cues = [] }) {
+  const durationFormatted = secondsToTimestamp(durationSec);
+  const targetActMinutes = Math.round((durationSec / numEpisodes) / 60);
+
+  let subtitleContext = "";
+  if (cues && cues.length > 0) {
+    let sampledCues = cues;
+    if (cues.length > 1200) {
+      const step = Math.ceil(cues.length / 1000);
+      sampledCues = cues.filter((_, idx) => idx % step === 0);
+    }
+    const cuesText = sampledCues
+      .map((c) => `[${secondsToTimestamp(c.start)}] ${c.text}`)
+      .join("\n");
+    subtitleContext = `\n\nDialogue transcript samples with timestamps:\n${cuesText}`;
+  } else {
+    subtitleContext = `\n\nNote: Subtitles were not detected in the player. Use your narrative beat knowledge of the screenplay for "${movieTitle}" and its total duration of ${durationFormatted} (${durationSec} seconds) to locate dramatic scene transitions and act breaks.`;
+  }
+
+  const prompt = `You are an expert series showrunner and editor for "Episodify Open Cut".
+Your mission is to re-engineer the film "${movieTitle}" (runtime: ${durationFormatted}, ${durationSec} seconds) into a bingeable ${numEpisodes}-episode miniseries.
+
+Each episode should be approximately ~${targetActMinutes} minutes long, cutting strictly at natural narrative cliffhangers, dramatic revelations, high-stakes dilemmas, or poignant emotional turning points.
+
+Requirements:
+1. Divide the movie into EXACTLY ${numEpisodes} continuous episodes.
+2. Continuity: Episode 1 MUST start at "00:00:00". For all subsequent episodes, start_time must equal the exact end_time of the preceding episode. The final episode MUST end at "${durationFormatted}".
+3. Cliffhanger Rating: Assign a suspense/cliffhanger rating between 7.0 and 9.9 for each episode break.
+4. Episode Titles: Cinematic episode titles (e.g. "Part 1: The Inciting Spark").
+5. Break Rationale: A 1-2 sentence dramatic explanation of why this specific moment serves as an unforgettable cliffhanger.
+6. Recap Text: A 2-sentence summary of the preceding events suitable for an episodic "Previously On" card.
+7. Teaser Next: A 1-sentence thrilling teaser for what comes next.
+${subtitleContext}
+
+Respond ONLY with valid JSON matching this exact structure:
+{
+  "title": "${movieTitle} (${numEpisodes}-Episode Miniseries)",
+  "year": 2024,
+  "runtime_seconds": ${durationSec},
+  "pacing": "drama",
+  "total_episodes": ${numEpisodes},
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Part 1: The Inciting Incident",
+      "start_time": "00:00:00",
+      "end_time": "HH:MM:SS",
+      "cliffhanger_rating": 8.9,
+      "break_rationale": "...",
+      "recap_text": "...",
+      "teaser_next": "..."
+    }
+  ]
+}`;
+
+  let lastError = null;
+  for (const model of ["gemini-2.5-flash", "gemini-1.5-flash"]) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        const errMsg = errJson?.error?.message || response.statusText || `HTTP ${response.status}`;
+        throw new Error(`${model} error: ${errMsg}`);
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error("Empty response from Gemini API");
+
+      const parsed = JSON.parse(rawText);
+      return cleanAndValidateRecipe(parsed, movieTitle, durationSec, numEpisodes);
+    } catch (err) {
+      console.warn(`[EOC-AI] Model ${model} attempt failed:`, err.message);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("Failed to generate miniseries with Gemini.");
+}
+
+// In-extension Gemini AI Miniseries Slicer Modal setup
+function setupAiSlicerModal() {
+  const modal = document.getElementById("ai-modal");
+  const openBtn = document.getElementById("open-ai-modal-btn");
+  const closeBtn = document.getElementById("close-ai-modal-btn");
+  const filmTitleEl = document.getElementById("ai-film-title");
+  const filmRuntimeEl = document.getElementById("ai-film-runtime");
+  const captionsStatusEl = document.getElementById("ai-captions-status");
+  const episodesSelect = document.getElementById("ai-episodes-select");
+  const keyInput = document.getElementById("gemini-key-input");
+  const saveKeyBtn = document.getElementById("save-key-btn");
+  const keySavedHint = document.getElementById("key-saved-hint");
+  const selectSubsBtn = document.getElementById("ai-select-subs-btn");
+  const subsFileInput = document.getElementById("ai-subs-file-input");
+  const subsFilenameEl = document.getElementById("ai-subs-filename");
+  const progressBox = document.getElementById("ai-progress-box");
+  const progressText = document.getElementById("ai-progress-text");
+  const generateBtn = document.getElementById("start-ai-generate-btn");
+
+  if (!modal || !openBtn) return;
+
+  let detectedMovieTitle = "";
+  let detectedRuntimeSec = 0;
+  let extractedPlayerCues = [];
+  let customUploadedCues = [];
+
+  // Load saved Gemini API key
+  chrome.storage?.local?.get(["gemini_api_key"], (res) => {
+    if (res?.gemini_api_key) {
+      keyInput.value = res.gemini_api_key;
+      keySavedHint.style.display = "block";
+      keySavedHint.textContent = "✓ Key saved securely in your browser";
+    }
+  });
+
+  // Save API key
+  saveKeyBtn?.addEventListener("click", () => {
+    const val = keyInput.value.trim();
+    if (val) {
+      chrome.storage?.local?.set({ gemini_api_key: val }, () => {
+        keySavedHint.style.display = "block";
+        keySavedHint.style.color = "";
+        keySavedHint.textContent = "✓ Key saved securely in your browser";
+      });
+    }
+  });
+
+  // Open modal & inspect active tab video/captions
+  openBtn.addEventListener("click", () => {
+    modal.style.display = "flex";
+    progressBox.style.display = "none";
+    generateBtn.disabled = false;
+    generateBtn.style.opacity = "";
+
+    filmTitleEl.textContent = "Scanning active player...";
+    filmRuntimeEl.textContent = "Detecting runtime...";
+    captionsStatusEl.textContent = "Checking text tracks...";
+    captionsStatusEl.className = "ai-captions-badge";
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab?.id) {
+        filmTitleEl.textContent = "No active tab";
+        filmRuntimeEl.textContent = "0s";
+        captionsStatusEl.textContent = "Inactive";
+        return;
+      }
+
+      function queryTabMedia() {
+        chrome.tabs.sendMessage(tab.id, { action: "EXTRACT_SUBTITLES" }, (subRes) => {
+          if (!chrome.runtime.lastError && subRes) {
+            const clean = cleanMovieTitle(subRes.pageTitle || tab.title || "");
+            detectedMovieTitle = clean;
+            detectedRuntimeSec = subRes.duration > 300 ? Math.round(subRes.duration) : 7200;
+            extractedPlayerCues = subRes.cues || [];
+
+            filmTitleEl.textContent = `🎬 ${detectedMovieTitle}`;
+            filmRuntimeEl.textContent = `${secondsToTimestamp(detectedRuntimeSec)} (${Math.round(detectedRuntimeSec / 60)} mins)`;
+
+            if (customUploadedCues.length > 0) {
+              captionsStatusEl.textContent = `🟢 Loaded from file (${customUploadedCues.length} cues)`;
+              captionsStatusEl.className = "ai-captions-badge ai-captions-active";
+            } else if (subRes.hasSubtitles && extractedPlayerCues.length > 0) {
+              captionsStatusEl.textContent = `🟢 Detected in player (${extractedPlayerCues.length} cues)`;
+              captionsStatusEl.className = "ai-captions-badge ai-captions-active";
+            } else {
+              captionsStatusEl.textContent = "⚪ Using screenplay knowledge (or upload .srt)";
+              captionsStatusEl.className = "ai-captions-badge";
+            }
+          } else {
+            // Fallback to GET_STATUS
+            chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (statusRes) => {
+              const clean = cleanMovieTitle(statusRes?.pageTitle || tab.title || "");
+              detectedMovieTitle = clean;
+              detectedRuntimeSec = statusRes?.duration > 300 ? Math.round(statusRes.duration) : 7200;
+              extractedPlayerCues = [];
+
+              filmTitleEl.textContent = `🎬 ${detectedMovieTitle}`;
+              filmRuntimeEl.textContent = `${secondsToTimestamp(detectedRuntimeSec)} (${Math.round(detectedRuntimeSec / 60)} mins)`;
+
+              if (customUploadedCues.length > 0) {
+                captionsStatusEl.textContent = `🟢 Loaded from file (${customUploadedCues.length} cues)`;
+                captionsStatusEl.className = "ai-captions-badge ai-captions-active";
+              } else {
+                captionsStatusEl.textContent = "⚪ Using screenplay knowledge (or upload .srt)";
+                captionsStatusEl.className = "ai-captions-badge";
+              }
+            });
+          }
+        });
+      }
+
+      tryAutoInject(tab, queryTabMedia);
+    });
+  });
+
+  // Close modal
+  closeBtn?.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+
+  // Optional custom subtitle file
+  selectSubsBtn?.addEventListener("click", () => {
+    subsFileInput.click();
+  });
+
+  subsFileInput?.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const parsed = parseSrtOrVtt(evt.target.result);
+        if (parsed.length === 0) {
+          alert("Could not find subtitle timestamps in the uploaded file. Please select a valid .srt or .vtt file.");
+          return;
+        }
+        customUploadedCues = parsed;
+        subsFilenameEl.style.display = "block";
+        subsFilenameEl.textContent = `📄 ${file.name} (${parsed.length} cues loaded)`;
+        captionsStatusEl.textContent = `🟢 Loaded from file (${parsed.length} cues)`;
+        captionsStatusEl.className = "ai-captions-badge ai-captions-active";
+      } catch (err) {
+        alert("Failed to parse subtitle file: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Trigger Gemini AI generation
+  generateBtn?.addEventListener("click", async () => {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) {
+      keyInput.focus();
+      keyInput.style.borderColor = "#ef4444";
+      keySavedHint.style.display = "block";
+      keySavedHint.style.color = "#ef4444";
+      keySavedHint.textContent = "⚠️ Please enter your Google Gemini API key first";
+      return;
+    }
+    keyInput.style.borderColor = "";
+    keySavedHint.style.color = "";
+    chrome.storage?.local?.set({ gemini_api_key: apiKey });
+
+    const numEpisodes = parseInt(episodesSelect.value, 10) || 4;
+    const cuesToUse = customUploadedCues.length > 0 ? customUploadedCues : extractedPlayerCues;
+    const movieTitle = detectedMovieTitle || "Feature Film";
+    const runtimeSec = detectedRuntimeSec > 300 ? detectedRuntimeSec : 7200;
+
+    generateBtn.disabled = true;
+    generateBtn.style.opacity = "0.6";
+    progressBox.style.display = "flex";
+    progressText.textContent = "Connecting to Google Gemini...";
+
+    const steps = [
+      "Analyzing screenplay act breaks & character arcs...",
+      "Detecting high-stakes cliffhangers & dramatic peaks...",
+      "Formatting episodic recaps and next-part teasers...",
+      "Verifying zero-gap scene boundary continuity...",
+    ];
+    let stepIdx = 0;
+    const progressTimer = setInterval(() => {
+      if (stepIdx < steps.length) {
+        progressText.textContent = steps[stepIdx++];
+      }
+    }, 2200);
+
+    try {
+      const recipe = await generateAiCutWithGemini({
+        apiKey: apiKey,
+        movieTitle: movieTitle,
+        durationSec: runtimeSec,
+        numEpisodes: numEpisodes,
+        cues: cuesToUse,
+      });
+
+      clearInterval(progressTimer);
+      progressText.textContent = `🎉 Created ${recipe.total_episodes}-part miniseries! Loading Part 1...`;
+
+      // Apply newly generated recipe directly to player!
+      applyRecipe(recipe, true);
+
+      // Cache locally
+      const slug = movieTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const cacheKey = `recipe_${slug}.eoc.json`;
+      const saveObj = {};
+      saveObj[cacheKey] = recipe;
+      chrome.storage?.local?.set(saveObj);
+
+      // Add to popup dropdown
+      const movieSelect = document.getElementById("movie-select");
+      if (movieSelect) {
+        const optVal = `registry:${slug}.eoc.json`;
+        let existingOpt = Array.from(movieSelect.options).find((o) => o.text.includes(movieTitle));
+        if (!existingOpt) {
+          existingOpt = document.createElement("option");
+          existingOpt.value = optVal;
+          existingOpt.textContent = `⚡ ${movieTitle} (${recipe.meta.year}) - ${recipe.total_episodes} Eps [AI Cut]`;
+          movieSelect.insertBefore(existingOpt, movieSelect.children[2] || null);
+        }
+        movieSelect.value = existingOpt.value;
+      }
+
+      setTimeout(() => {
+        modal.style.display = "none";
+        generateBtn.disabled = false;
+        generateBtn.style.opacity = "";
+        progressBox.style.display = "none";
+        updateUI();
+      }, 1400);
+    } catch (err) {
+      clearInterval(progressTimer);
+      progressText.textContent = `❌ Generation failed: ${err.message}`;
+      generateBtn.disabled = false;
+      generateBtn.style.opacity = "";
+      console.error("[EOC-AI] Generation failed:", err);
+    }
+  });
+}
+
