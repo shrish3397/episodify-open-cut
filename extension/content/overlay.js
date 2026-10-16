@@ -856,13 +856,49 @@
           recipeTitle: activeRecipe?.meta?.title || null,
           recipe: activeRecipe,
           episodesCount: activeRecipe?.episodes?.length || 0,
-          pageTitle: document.title,
+          pageTitle: getRealMovieTitle() || document.title,
           url: window.location.href,
           isStandby: !activeRecipe,
         });
         return true;
       }
     });
+
+    function getRealMovieTitle() {
+      // 1. Netflix DOM title
+      const netflixTitle = document.querySelector(".video-title h4, [data-uia='video-title'], .ellipsize-text, h4.ellipsize-text")?.textContent?.trim();
+      if (netflixTitle) return netflixTitle;
+
+      // 2. Check Netflix ID / URL for known movies
+      const url = window.location.href.toLowerCase();
+      if (url.includes("81760391") || url.includes("laapataa") || url.includes("laapta")) return "Laapataa Ladies";
+      if (url.includes("70270408") || url.includes("millers")) return "We're the Millers";
+
+      // 3. Prime Video DOM title
+      const primeTitle = document.querySelector("[data-automation-id='title'], h1[class*='Title']")?.textContent?.trim();
+      if (primeTitle && !primeTitle.toLowerCase().includes("prime video")) return primeTitle;
+
+      // 4. Hotstar DOM title
+      const hotstarTitle = document.querySelector("h1.title, [data-testid='player-title']")?.textContent?.trim();
+      if (hotstarTitle) return hotstarTitle;
+
+      // 5. Clean document.title
+      let t = (document.title || "").trim();
+      t = t.replace(/^Watch\s+/i, "")
+           .replace(/\s*\|\s*Netflix.*$/i, "")
+           .replace(/\s*-\s*Netflix.*$/i, "")
+           .replace(/^Prime Video:\s*/i, "")
+           .replace(/\s*\|\s*Prime Video.*$/i, "")
+           .replace(/\s*on Disney\+ Hotstar.*$/i, "")
+           .replace(/\s*-\s*YouTube.*$/i, "")
+           .trim();
+
+      const banned = ["netflix", "prime video", "hotstar", "disney+ hotstar", "youtube", "home", "watch"];
+      if (t && !banned.includes(t.toLowerCase())) {
+        return t;
+      }
+      return "";
+    }
 
     const BUILTIN_HOTSTAR_BETHLEHEM_8EP = {
       $schema: "https://episodify.org/schema/v1.json",
@@ -946,6 +982,25 @@
       ]
     };
 
+    const BUILTIN_NETFLIX_LAAPATAA_4EP = {
+      $schema: "https://episodify.org/schema/v1.json",
+      meta: {
+        title: "Laapataa Ladies (4-Episode Miniseries)",
+        year: 2024,
+        runtime_seconds: 7455,
+        imdb_id: "tt22262440",
+        pacing: "comedy_drama",
+        generator: "eoc-core"
+      },
+      total_episodes: 4,
+      episodes: [
+        { episode_number: 1, title: "Part 1: The Veil of Confusion", start_time: "00:00:00", end_time: "00:31:30", cliffhanger_rating: 8.9, break_rationale: "Deepak disembarks in his village only to uncover the horrifying truth that he brought home the wrong veiled bride; miles away, Phool awakens stranded alone at an unfamiliar railway platform.", recap_text: "In rural 2001 India, newlyweds Deepak and Phool travel home on a packed night train with identical veiled brides. In the nighttime disembarkation chaos, Deepak accidentally leads the wrong bride home.", teaser_next: "Deepak launches a frantic search across the district as Phool struggles to survive stranded at the remote station." },
+        { episode_number: 2, title: "Part 2: Stranded in Pateela", start_time: "00:31:30", end_time: "01:01:45", cliffhanger_rating: 9.2, break_rationale: "Cynical Inspector Shyam Manohar suspects foul play when he finds pawned jewelry, realizing the quiet bride in Deepak's home is operating under an alias with a hidden agenda.", recap_text: "At the railway station, kindly tea-stall owner Manju Maai takes Phool under her wing. Meanwhile, Deepak files a missing bride report as suspicion mounts around his veiled houseguest.", teaser_next: "Missing person sketches circulate across the state as Shyam Manohar closes in on Jaya's secret past." },
+        { episode_number: 3, title: "Part 3: The Sketch & The Secret", start_time: "01:01:45", end_time: "01:34:00", cliffhanger_rating: 9.5, break_rationale: "Shyam Manohar discovers Jaya's admission letter to Dehradun Agricultural University and prepares to arrest her, just as her abusive husband tracks her down to the police station.", recap_text: "Jaya shares her dream of modern organic farming with Deepak's family. At the station, Phool learns self-reliance making snacks, but Deepak's missing posters struggle to reach her.", teaser_next: "With corrupt forces and a vengeful husband closing in, Jaya faces her final chance to reclaim her freedom and reunite Deepak with Phool." },
+        { episode_number: 4, title: "Part 4: The Path to Surajmukhi", start_time: "01:34:00", end_time: "02:04:15", cliffhanger_rating: 8.5, break_rationale: "Shyam Manohar tears up the arrest warrant to set Jaya free; Deepak finally spots Phool at the railway station for a tearful, heartwarming reunion as both brides reclaim their destiny.", recap_text: "Overcoming rural prejudices and mistaken identities, Shyam Manohar protects Jaya, while Deepak and Phool reunite in an emotional station climax.", teaser_next: "Series finale concludes the beloved comedy-drama miniseries cut of Laapataa Ladies." }
+      ]
+    };
+
     function doesRecipeMatchPage(recipe) {
       if (!recipe || !recipe.meta) return false;
       const url = window.location.href.toLowerCase();
@@ -970,7 +1025,13 @@
 
       if (!cleanTitle || cleanTitle.length < 3) return false;
 
-      // 3. Exact slug check (e.g. "2-states", "were-the-millers")
+      // Block generic platform names like "Netflix", "Prime Video", "Movie" from matching domains
+      const genericNames = ["netflix", "prime video", "primevideo", "hotstar", "disney", "youtube", "movie", "video", "home"];
+      if (genericNames.includes(cleanTitle)) {
+        return false;
+      }
+
+      // 3. Exact slug check (e.g. "2-states", "were-the-millers", "laapataa-ladies")
       const slug = cleanTitle.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       if (slug && (url.includes(slug) || combined.includes(slug.replace(/-/g, " ")))) {
         return true;
@@ -997,6 +1058,10 @@
       const combined = url + " " + title;
 
       // 1. Auto-detect if current page is one of our verified built-in cuts
+      if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
+        setRecipe(BUILTIN_NETFLIX_LAAPATAA_4EP);
+        return;
+      }
       if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
         setRecipe(BUILTIN_HOTSTAR_2STATES_4EP);
         return;
@@ -1024,8 +1089,9 @@
           return;
         }
 
-        // 3. If storage has active_recipe, ONLY accept if it genuinely matches this page
-        if (res?.active_recipe && doesRecipeMatchPage(res.active_recipe)) {
+        // 3. If storage has active_recipe, ONLY accept if it genuinely matches this page (and not a generic title)
+        const isGeneric = ["netflix", "prime video", "movie"].some((g) => (res?.active_recipe?.meta?.title || "").toLowerCase().includes(g));
+        if (res?.active_recipe && !isGeneric && doesRecipeMatchPage(res.active_recipe)) {
           console.log("[EOC-Shadow] Verified stored recipe matches current page:", res.active_recipe.meta?.title);
           setRecipe(res.active_recipe);
           return;

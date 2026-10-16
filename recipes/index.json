@@ -3,6 +3,17 @@
   "updated_at": "2026-10-13T00:00:00Z",
   "registry": [
     {
+      "imdb_id": "tt22262440",
+      "title": "Laapataa Ladies (4-Episode Miniseries)",
+      "year": 2024,
+      "director": "Kiran Rao",
+      "producers": "Aamir Khan, Kiran Rao, Jyoti Deshpande",
+      "runtime_seconds": 7455,
+      "total_episodes": 4,
+      "recipe_file": "laapataa-ladies-2024.eoc.json",
+      "pacing": "comedy_drama"
+    },
+    {
       "imdb_id": "tt1723121",
       "title": "We're the Millers (4-Episode Miniseries)",
       "year": 2013,

@@ -30,6 +30,60 @@ function secondsToTimestamp(sec) {
 
 // Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
+  "laapataa-ladies": {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "Laapataa Ladies (4-Episode Miniseries)",
+      year: 2024,
+      runtime_seconds: 7455,
+      imdb_id: "tt22262440",
+      pacing: "comedy_drama",
+      generator: "eoc-core"
+    },
+    total_episodes: 4,
+    episodes: [
+      {
+        episode_number: 1,
+        title: "Part 1: The Veil of Confusion",
+        start_time: "00:00:00",
+        end_time: "00:31:30",
+        cliffhanger_rating: 8.9,
+        break_rationale: "Deepak disembarks in his village only to uncover the horrifying truth that he brought home the wrong veiled bride; miles away, Phool awakens stranded alone at an unfamiliar railway platform.",
+        recap_text: "In rural 2001 India, newlyweds Deepak and Phool travel home on a packed night train with identical veiled brides. In the nighttime disembarkation chaos, Deepak accidentally leads the wrong bride home.",
+        teaser_next: "Deepak launches a frantic search across the district as Phool struggles to survive stranded at the remote station."
+      },
+      {
+        episode_number: 2,
+        title: "Part 2: Stranded in Pateela",
+        start_time: "00:31:30",
+        end_time: "01:01:45",
+        cliffhanger_rating: 9.2,
+        break_rationale: "Cynical Inspector Shyam Manohar suspects foul play when he finds pawned jewelry, realizing the quiet bride in Deepak's home is operating under an alias with a hidden agenda.",
+        recap_text: "At the railway station, kindly tea-stall owner Manju Maai takes Phool under her wing. Meanwhile, Deepak files a missing bride report as suspicion mounts around his veiled houseguest.",
+        teaser_next: "Missing person sketches circulate across the state as Shyam Manohar closes in on Jaya's secret past."
+      },
+      {
+        episode_number: 3,
+        title: "Part 3: The Sketch & The Secret",
+        start_time: "01:01:45",
+        end_time: "01:34:00",
+        cliffhanger_rating: 9.5,
+        break_rationale: "Shyam Manohar discovers Jaya's admission letter to Dehradun Agricultural University and prepares to arrest her, just as her abusive husband tracks her down to the police station.",
+        recap_text: "Jaya shares her dream of modern organic farming with Deepak's family. At the station, Phool learns self-reliance making snacks, but Deepak's missing posters struggle to reach her.",
+        teaser_next: "With corrupt forces and a vengeful husband closing in, Jaya faces her final chance to reclaim her freedom and reunite Deepak with Phool."
+      },
+      {
+        episode_number: 4,
+        title: "Part 4: The Path to Surajmukhi",
+        start_time: "01:34:00",
+        end_time: "02:04:15",
+        cliffhanger_rating: 8.5,
+        break_rationale: "Shyam Manohar tears up the arrest warrant to set Jaya free; Deepak finally spots Phool at the railway station for a tearful, heartwarming reunion as both brides reclaim their destiny.",
+        recap_text: "Overcoming rural prejudices and mistaken identities, Shyam Manohar protects Jaya, while Deepak and Phool reunite in an emotional station climax.",
+        teaser_next: "Series finale concludes the beloved comedy-drama miniseries cut of Laapataa Ladies."
+      }
+    ]
+  },
   "2-states": {
     $schema: "https://episodify.org/schema/v1.json",
     meta: {
@@ -285,36 +339,47 @@ document.addEventListener("DOMContentLoaded", () => {
           chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const tab = tabs[0];
             if (tab) {
-              const matched = autoDetectMovie(tab.url || "", tab.title || "", true);
-              if (!matched) {
+              chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (res) => {
+                const effectiveUrl = res?.url || tab.url || "";
+                const effectiveTitle = res?.pageTitle || tab.title || "";
+                const matched = autoDetectMovie(effectiveUrl, effectiveTitle, true);
+                if (matched) return;
+
                 // If unlisted movie, query video player duration to generate dynamic 4-act cut!
-                chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (res) => {
-                  if (res && res.duration && res.duration > 300) {
-                    const dur = Math.round(res.duration);
-                    const epDur = Math.round(dur / 4);
-                    const cleanTitle = (tab.title || "Movie").replace(/ - .*$/, "").replace(/^Watch /, "").trim();
-                    const generatedRecipe = {
-                      $schema: "https://episodify.org/schema/v1.json",
-                      meta: {
-                        title: `${cleanTitle} (4-Episode Cut)`,
-                        year: new Date().getFullYear(),
-                        runtime_seconds: dur,
-                        generator: "eoc-auto"
-                      },
-                      total_episodes: 4,
-                      episodes: [
-                        { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: secondsToTimestamp(epDur), cliffhanger_rating: 8.5, break_rationale: "First act turning point.", recap_text: "Initial story setup and character introduction.", teaser_next: "Stakes escalate as main conflict unfolds." },
-                        { episode_number: 2, title: "Part 2: Rising Stakes", start_time: secondsToTimestamp(epDur), end_time: secondsToTimestamp(epDur * 2), cliffhanger_rating: 9.0, break_rationale: "Midpoint crisis.", recap_text: "Tension deepens as obstacles mount.", teaser_next: "A major dilemma tests the protagonists." },
-                        { episode_number: 3, title: "Part 3: The Turning Point", start_time: secondsToTimestamp(epDur * 2), end_time: secondsToTimestamp(epDur * 3), cliffhanger_rating: 9.3, break_rationale: "The lowest point / major crossroads.", recap_text: "All hopes seem dashed before a final breakthrough.", teaser_next: "The grand confrontation arrives." },
-                        { episode_number: 4, title: "Part 4: The Final Resolution", start_time: secondsToTimestamp(epDur * 3), end_time: secondsToTimestamp(dur), cliffhanger_rating: 8.0, break_rationale: "Climax and resolution.", recap_text: "Final showdown and story resolution.", teaser_next: "Series finale concludes the story." }
-                      ]
-                    };
-                    applyRecipe(generatedRecipe, true);
-                  } else {
-                    alert("Please start video playback first so we can detect its runtime, or choose a cut from the dropdown!");
+                if (res && res.duration && res.duration > 300) {
+                  const dur = Math.round(res.duration);
+                  const epDur = Math.round(dur / 4);
+                  let cleanTitle = (res.pageTitle || tab.title || "Feature Film")
+                    .replace(/ - .*$/, "")
+                    .replace(/^Watch\s+/i, "")
+                    .replace(/\s*\|\s*Netflix.*$/i, "")
+                    .replace(/\s*-\s*Netflix.*$/i, "")
+                    .trim();
+                  const genericWords = ["netflix", "prime video", "hotstar", "home", "movie", "video", "watch"];
+                  if (!cleanTitle || genericWords.includes(cleanTitle.toLowerCase())) {
+                    cleanTitle = "Feature Film";
                   }
-                });
-              }
+                  const generatedRecipe = {
+                    $schema: "https://episodify.org/schema/v1.json",
+                    meta: {
+                      title: `${cleanTitle} (4-Episode Cut)`,
+                      year: new Date().getFullYear(),
+                      runtime_seconds: dur,
+                      generator: "eoc-auto"
+                    },
+                    total_episodes: 4,
+                    episodes: [
+                      { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: secondsToTimestamp(epDur), cliffhanger_rating: 8.5, break_rationale: "First act turning point.", recap_text: "Initial story setup and character introduction.", teaser_next: "Stakes escalate as main conflict unfolds." },
+                      { episode_number: 2, title: "Part 2: Rising Stakes", start_time: secondsToTimestamp(epDur), end_time: secondsToTimestamp(epDur * 2), cliffhanger_rating: 9.0, break_rationale: "Midpoint crisis.", recap_text: "Tension deepens as obstacles mount.", teaser_next: "A major dilemma tests the protagonists." },
+                      { episode_number: 3, title: "Part 3: The Turning Point", start_time: secondsToTimestamp(epDur * 2), end_time: secondsToTimestamp(epDur * 3), cliffhanger_rating: 9.3, break_rationale: "The lowest point / major crossroads.", recap_text: "All hopes seem dashed before a final breakthrough.", teaser_next: "The grand confrontation arrives." },
+                      { episode_number: 4, title: "Part 4: The Final Resolution", start_time: secondsToTimestamp(epDur * 3), end_time: secondsToTimestamp(dur), cliffhanger_rating: 8.0, break_rationale: "Climax and resolution.", recap_text: "Final showdown and story resolution.", teaser_next: "Series finale concludes the story." }
+                    ]
+                  };
+                  applyRecipe(generatedRecipe, true);
+                } else {
+                  alert("Please start video playback first so we can detect its runtime, or choose a cut from the dropdown!");
+                }
+              });
             }
           });
         }
@@ -330,7 +395,13 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (val === "auto") {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tab = tabs[0];
-        if (tab) autoDetectMovie(tab.url || "", tab.title || "", true);
+        if (tab) {
+          chrome.tabs.sendMessage(tab.id, { action: "GET_STATUS" }, (res) => {
+            const effectiveUrl = res?.url || tab.url || "";
+            const effectiveTitle = res?.pageTitle || tab.title || "";
+            autoDetectMovie(effectiveUrl, effectiveTitle, true);
+          });
+        }
       });
     } else if (val === "custom") {
       fileInput.click();
@@ -707,7 +778,9 @@ function autoDetectMovie(url = "", title = "", autoApply = false) {
 
   // 1. Check built-in recipes
   let matchedKey = null;
-  if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
+  if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
+    matchedKey = "laapataa-ladies";
+  } else if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
     matchedKey = "2-states";
   } else if (combined.includes("millers") || combined.includes("70270408")) {
     matchedKey = "were-the-millers";
@@ -786,6 +859,28 @@ function checkActiveTabStatus(statusEl) {
 
         // If the active tab already has an active recipe loaded:
         if (res.recipe && !res.isStandby) {
+          const recipeTitle = (res.recipe?.meta?.title || "").toLowerCase();
+          const isGenericRecipe = ["netflix", "prime video", "hotstar", "movie (4-episode cut)"].some(g => recipeTitle.includes(g));
+          const effectiveUrl = res.url || url;
+          const effectiveTitle = res.pageTitle || tab.title || "";
+          const matched = autoDetectMovie(effectiveUrl, effectiveTitle, false);
+
+          // If a generic recipe was mistakenly loaded, or if the page matches a verified movie that differs from res.recipe:
+          if (matched && (isGenericRecipe || (matched.meta?.title && matched.meta.title !== res.recipe.meta?.title && effectiveUrl.includes("81760391")))) {
+            console.log("[EOC] Replacing stale recipe with detected movie cut:", matched.meta?.title);
+            currentRecipe = matched;
+            applyRecipe(matched, true);
+            updateUI();
+            return;
+          }
+
+          // If current stored recipe is generic and doesn't match this page, revert to Standby!
+          if (isGenericRecipe && !matched) {
+            console.log("[EOC] Purging stale generic recipe from non-matching page:", res.recipe.meta?.title);
+            detachRecipe();
+            return;
+          }
+
           currentRecipe = res.recipe;
           const movieSelect = document.getElementById("movie-select");
           if (movieSelect) {
@@ -853,6 +948,25 @@ function checkActiveTabStatus(statusEl) {
                 statusEl.querySelector(".status-text").textContent = "Player Active";
               }
               if (retryRes.recipe && !retryRes.isStandby) {
+                const recipeTitle = (retryRes.recipe?.meta?.title || "").toLowerCase();
+                const isGenericRecipe = ["netflix", "prime video", "hotstar", "movie (4-episode cut)"].some(g => recipeTitle.includes(g));
+                const effectiveUrl = retryRes.url || url;
+                const effectiveTitle = retryRes.pageTitle || tab.title || "";
+                const matched = autoDetectMovie(effectiveUrl, effectiveTitle, false);
+
+                if (matched && (isGenericRecipe || (matched.meta?.title && matched.meta.title !== retryRes.recipe.meta?.title && effectiveUrl.includes("81760391")))) {
+                  console.log("[EOC] Replacing stale recipe with detected movie cut:", matched.meta?.title);
+                  currentRecipe = matched;
+                  applyRecipe(matched, true);
+                  updateUI();
+                  return;
+                }
+
+                if (isGenericRecipe && !matched) {
+                  detachRecipe();
+                  return;
+                }
+
                 currentRecipe = retryRes.recipe;
                 const movieSelect = document.getElementById("movie-select");
                 if (movieSelect) {
