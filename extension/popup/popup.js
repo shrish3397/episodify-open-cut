@@ -399,39 +399,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const matched = autoDetectMovie(effectiveUrl, effectiveTitle, true);
                 if (matched) return;
 
-                // If unlisted movie, query video player duration to generate dynamic 4-act cut!
-                const dur = (res && res.duration && res.duration > 300) ? Math.round(res.duration) : 7200;
-                const epDur = Math.round(dur / 4);
-                let cleanTitle = (res?.pageTitle || tab.title || "Feature Film")
-                  .replace(/ - .*$/, "")
-                  .replace(/^Watch\s+/i, "")
-                  .replace(/^Prime Video:\s*/i, "")
-                  .replace(/\s*\|\s*Prime Video.*$/i, "")
-                  .replace(/\s*-\s*Prime Video.*$/i, "")
-                  .replace(/\s*\|\s*Netflix.*$/i, "")
-                  .replace(/\s*-\s*Netflix.*$/i, "")
-                  .trim();
-                const genericWords = ["netflix", "prime video", "hotstar", "home", "movie", "video", "watch"];
-                if (!cleanTitle || genericWords.includes(cleanTitle.toLowerCase())) {
-                  cleanTitle = "Feature Film";
+                // If unlisted movie, open the Gemini AI Miniseries Slicer directly!
+                const openAiBtn = document.getElementById("open-ai-modal-btn");
+                if (openAiBtn) {
+                  openAiBtn.click();
+                  return;
                 }
-                const generatedRecipe = {
-                  $schema: "https://episodify.org/schema/v1.json",
-                  meta: {
-                    title: `${cleanTitle} (4-Episode Cut)`,
-                    year: new Date().getFullYear(),
-                    runtime_seconds: dur,
-                    generator: "eoc-auto"
-                  },
-                  total_episodes: 4,
-                  episodes: [
-                    { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: secondsToTimestamp(epDur), cliffhanger_rating: 8.5, break_rationale: "First act turning point.", recap_text: "Initial story setup and character introduction.", teaser_next: "Stakes escalate as main conflict unfolds." },
-                    { episode_number: 2, title: "Part 2: Rising Stakes", start_time: secondsToTimestamp(epDur), end_time: secondsToTimestamp(epDur * 2), cliffhanger_rating: 9.0, break_rationale: "Midpoint crisis.", recap_text: "Tension deepens as obstacles mount.", teaser_next: "A major dilemma tests the protagonists." },
-                    { episode_number: 3, title: "Part 3: The Turning Point", start_time: secondsToTimestamp(epDur * 2), end_time: secondsToTimestamp(epDur * 3), cliffhanger_rating: 9.3, break_rationale: "The lowest point / major crossroads.", recap_text: "All hopes seem dashed before a final breakthrough.", teaser_next: "The grand confrontation arrives." },
-                    { episode_number: 4, title: "Part 4: The Final Resolution", start_time: secondsToTimestamp(epDur * 3), end_time: secondsToTimestamp(dur), cliffhanger_rating: 8.0, break_rationale: "Climax and resolution.", recap_text: "Final showdown and story resolution.", teaser_next: "Series finale concludes the story." }
-                  ]
-                };
-                applyRecipe(generatedRecipe, true);
               });
             }
           });
@@ -651,6 +624,24 @@ function updateUI() {
   if (metaTitle) metaTitle.textContent = meta.title || "Unknown Film";
   if (metaYear) metaYear.textContent = meta.year || "";
 
+  if (movieSelect) {
+    const foundKey = Object.keys(BUILTIN_RECIPES).find(
+      (k) => BUILTIN_RECIPES[k].meta?.title === currentRecipe.meta?.title
+    );
+    if (foundKey) {
+      movieSelect.value = foundKey;
+    } else {
+      let activeOpt = Array.from(movieSelect.options).find((o) => o.value === "active_custom");
+      if (!activeOpt) {
+        activeOpt = document.createElement("option");
+        activeOpt.value = "active_custom";
+        movieSelect.insertBefore(activeOpt, movieSelect.children[2] || null);
+      }
+      activeOpt.textContent = `🎬 ${meta.title || "Active Miniseries Cut"}`;
+      movieSelect.value = "active_custom";
+    }
+  }
+
   const runtimeSec = meta.runtime_seconds || 0;
   const hrs = Math.floor(runtimeSec / 3600);
   const mins = Math.floor((runtimeSec % 3600) / 60);
@@ -666,12 +657,16 @@ function updateUI() {
     const item = document.createElement("div");
     item.className = "episode-item";
     const isFirstEp = ep.episode_number === 1;
+    const rawEpTitle = ep.title || "";
+    const displayTitle = rawEpTitle.toLowerCase().startsWith("part ")
+      ? rawEpTitle
+      : `Part ${ep.episode_number}: ${rawEpTitle}`;
 
     item.innerHTML = `
       <div style="width: 100%;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
           <div class="episode-info">
-            <div class="episode-item-title">Part ${ep.episode_number}: ${ep.title}</div>
+            <div class="episode-item-title">${displayTitle}</div>
             <div class="episode-item-meta">
               <span>${ep.start_time} - ${ep.end_time}</span>
               <span class="episode-cliffhanger">★ ${ep.cliffhanger_rating}/10</span>

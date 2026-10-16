@@ -73,8 +73,7 @@
       -webkit-backdrop-filter: blur(14px);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       padding: 24px;
@@ -82,6 +81,7 @@
     }
 
     .eoc-backdrop.visible {
+      display: flex;
       opacity: 1;
       pointer-events: auto;
     }
@@ -391,7 +391,16 @@
     if (v) {
       try {
         v.currentTime = targetSec;
-        v.play().catch(() => {});
+        const playWhenReady = () => {
+          v.removeEventListener("seeked", playWhenReady);
+          v.removeEventListener("canplay", playWhenReady);
+          v.play().catch(() => {});
+        };
+        v.addEventListener("seeked", playWhenReady, { once: true });
+        v.addEventListener("canplay", playWhenReady, { once: true });
+        setTimeout(() => {
+          if (v.paused) v.play().catch(() => {});
+        }, 600);
       } catch (e) {}
     }
   }
