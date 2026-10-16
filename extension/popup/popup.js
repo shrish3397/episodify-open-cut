@@ -30,6 +30,60 @@ function secondsToTimestamp(sec) {
 
 // Offline-ready built-in library (available even with zero internet)
 const BUILTIN_RECIPES = {
+  "queen": {
+    $schema: "https://episodify.org/schema/v1.json",
+    meta: {
+      title: "Queen (4-Episode Miniseries)",
+      year: 2014,
+      runtime_seconds: 8640,
+      imdb_id: "tt3322420",
+      pacing: "comedy_drama",
+      generator: "eoc-core"
+    },
+    total_episodes: 4,
+    episodes: [
+      {
+        episode_number: 1,
+        title: "Part 1: The Solo Honeymoon",
+        start_time: "00:00:00",
+        end_time: "00:36:20",
+        cliffhanger_rating: 8.9,
+        break_rationale: "Crushed by Vijay calling off their wedding at the Delhi cafe, a devastated Rani makes the courageous decision to embark on their pre-booked Paris honeymoon completely alone, stepping out into the bustling European night.",
+        recap_text: "In Rajouri Garden, Delhi, conservative bride Rani's world shatters when fiancé Vijay calls off their wedding one day before the ceremony. Defying family expectations, Rani packs her bags for Paris alone.",
+        teaser_next: "Stranded in Paris with no international travel experience, Rani faces culture shock, lost directions, and a chaotic street confrontation."
+      },
+      {
+        episode_number: 2,
+        title: "Part 2: Parisian Freedom",
+        start_time: "00:36:20",
+        end_time: "01:12:45",
+        cliffhanger_rating: 9.3,
+        break_rationale: "After an exhilarating, liberating night across Paris with free-spirited Vijaylaxmi, Rani boards the train to Amsterdam transformed, only to discover her new budget hostel room is shared with three unfamiliar foreign men.",
+        recap_text: "In Paris, vibrant Indo-French hotel worker Vijaylaxmi takes Rani under her wing, helping her overcome heartbreak and taste independence for the first time.",
+        teaser_next: "Rani arrives in free-spirited Amsterdam and must navigate sharing a tiny hostel room with three boisterous male roommates."
+      },
+      {
+        episode_number: 3,
+        title: "Part 3: The Amsterdam Awakening",
+        start_time: "01:12:45",
+        end_time: "01:48:30",
+        cliffhanger_rating: 9.5,
+        break_rationale: "Rani triumphs at the Amsterdam street festival cooking Delhi golgappas and winning the crowd, but as she celebrates with her roommates, a guilt-ridden Vijay unexpectedly arrives in Amsterdam begging for her forgiveness.",
+        recap_text: "Overcoming initial awkwardness, Rani forms an unbreakable bond with hostel roommates Taka, Tim, and Oleksandr, discovering her entrepreneurial passion making street snacks.",
+        teaser_next: "Vijay corners Rani in Amsterdam, demanding she return to domestic life just as Rani discovers the power of her own independence."
+      },
+      {
+        episode_number: 4,
+        title: "Part 4: The Triumphant Return",
+        start_time: "01:48:30",
+        end_time: "02:24:00",
+        cliffhanger_rating: 8.6,
+        break_rationale: "Rani lovingly bids farewell to her European companions, returns to Delhi, and visits Vijay only to calmly return his engagement ring with a radiant, liberating smile of absolute self-worth.",
+        recap_text: "Rejecting Vijay's regressive demands, Rani chooses herself, turning heartbreak into a triumphant celebration of womanhood and self-realization.",
+        teaser_next: "Series finale concludes the beloved coming-of-age comedy-drama miniseries cut of Queen."
+      }
+    ]
+  },
   "laapataa-ladies": {
     $schema: "https://episodify.org/schema/v1.json",
     meta: {
@@ -346,39 +400,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (matched) return;
 
                 // If unlisted movie, query video player duration to generate dynamic 4-act cut!
-                if (res && res.duration && res.duration > 300) {
-                  const dur = Math.round(res.duration);
-                  const epDur = Math.round(dur / 4);
-                  let cleanTitle = (res.pageTitle || tab.title || "Feature Film")
-                    .replace(/ - .*$/, "")
-                    .replace(/^Watch\s+/i, "")
-                    .replace(/\s*\|\s*Netflix.*$/i, "")
-                    .replace(/\s*-\s*Netflix.*$/i, "")
-                    .trim();
-                  const genericWords = ["netflix", "prime video", "hotstar", "home", "movie", "video", "watch"];
-                  if (!cleanTitle || genericWords.includes(cleanTitle.toLowerCase())) {
-                    cleanTitle = "Feature Film";
-                  }
-                  const generatedRecipe = {
-                    $schema: "https://episodify.org/schema/v1.json",
-                    meta: {
-                      title: `${cleanTitle} (4-Episode Cut)`,
-                      year: new Date().getFullYear(),
-                      runtime_seconds: dur,
-                      generator: "eoc-auto"
-                    },
-                    total_episodes: 4,
-                    episodes: [
-                      { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: secondsToTimestamp(epDur), cliffhanger_rating: 8.5, break_rationale: "First act turning point.", recap_text: "Initial story setup and character introduction.", teaser_next: "Stakes escalate as main conflict unfolds." },
-                      { episode_number: 2, title: "Part 2: Rising Stakes", start_time: secondsToTimestamp(epDur), end_time: secondsToTimestamp(epDur * 2), cliffhanger_rating: 9.0, break_rationale: "Midpoint crisis.", recap_text: "Tension deepens as obstacles mount.", teaser_next: "A major dilemma tests the protagonists." },
-                      { episode_number: 3, title: "Part 3: The Turning Point", start_time: secondsToTimestamp(epDur * 2), end_time: secondsToTimestamp(epDur * 3), cliffhanger_rating: 9.3, break_rationale: "The lowest point / major crossroads.", recap_text: "All hopes seem dashed before a final breakthrough.", teaser_next: "The grand confrontation arrives." },
-                      { episode_number: 4, title: "Part 4: The Final Resolution", start_time: secondsToTimestamp(epDur * 3), end_time: secondsToTimestamp(dur), cliffhanger_rating: 8.0, break_rationale: "Climax and resolution.", recap_text: "Final showdown and story resolution.", teaser_next: "Series finale concludes the story." }
-                    ]
-                  };
-                  applyRecipe(generatedRecipe, true);
-                } else {
-                  alert("Please start video playback first so we can detect its runtime, or choose a cut from the dropdown!");
+                const dur = (res && res.duration && res.duration > 300) ? Math.round(res.duration) : 7200;
+                const epDur = Math.round(dur / 4);
+                let cleanTitle = (res?.pageTitle || tab.title || "Feature Film")
+                  .replace(/ - .*$/, "")
+                  .replace(/^Watch\s+/i, "")
+                  .replace(/^Prime Video:\s*/i, "")
+                  .replace(/\s*\|\s*Prime Video.*$/i, "")
+                  .replace(/\s*-\s*Prime Video.*$/i, "")
+                  .replace(/\s*\|\s*Netflix.*$/i, "")
+                  .replace(/\s*-\s*Netflix.*$/i, "")
+                  .trim();
+                const genericWords = ["netflix", "prime video", "hotstar", "home", "movie", "video", "watch"];
+                if (!cleanTitle || genericWords.includes(cleanTitle.toLowerCase())) {
+                  cleanTitle = "Feature Film";
                 }
+                const generatedRecipe = {
+                  $schema: "https://episodify.org/schema/v1.json",
+                  meta: {
+                    title: `${cleanTitle} (4-Episode Cut)`,
+                    year: new Date().getFullYear(),
+                    runtime_seconds: dur,
+                    generator: "eoc-auto"
+                  },
+                  total_episodes: 4,
+                  episodes: [
+                    { episode_number: 1, title: "Part 1: The Inciting Spark", start_time: "00:00:00", end_time: secondsToTimestamp(epDur), cliffhanger_rating: 8.5, break_rationale: "First act turning point.", recap_text: "Initial story setup and character introduction.", teaser_next: "Stakes escalate as main conflict unfolds." },
+                    { episode_number: 2, title: "Part 2: Rising Stakes", start_time: secondsToTimestamp(epDur), end_time: secondsToTimestamp(epDur * 2), cliffhanger_rating: 9.0, break_rationale: "Midpoint crisis.", recap_text: "Tension deepens as obstacles mount.", teaser_next: "A major dilemma tests the protagonists." },
+                    { episode_number: 3, title: "Part 3: The Turning Point", start_time: secondsToTimestamp(epDur * 2), end_time: secondsToTimestamp(epDur * 3), cliffhanger_rating: 9.3, break_rationale: "The lowest point / major crossroads.", recap_text: "All hopes seem dashed before a final breakthrough.", teaser_next: "The grand confrontation arrives." },
+                    { episode_number: 4, title: "Part 4: The Final Resolution", start_time: secondsToTimestamp(epDur * 3), end_time: secondsToTimestamp(dur), cliffhanger_rating: 8.0, break_rationale: "Climax and resolution.", recap_text: "Final showdown and story resolution.", teaser_next: "Series finale concludes the story." }
+                  ]
+                };
+                applyRecipe(generatedRecipe, true);
               });
             }
           });
@@ -778,7 +831,9 @@ function autoDetectMovie(url = "", title = "", autoApply = false) {
 
   // 1. Check built-in recipes
   let matchedKey = null;
-  if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
+  if (combined.includes("queen") || combined.includes("0qry75b5jx2obl1p59w9bn0qxn")) {
+    matchedKey = "queen";
+  } else if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
     matchedKey = "laapataa-ladies";
   } else if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
     matchedKey = "2-states";
@@ -866,7 +921,7 @@ function checkActiveTabStatus(statusEl) {
           const matched = autoDetectMovie(effectiveUrl, effectiveTitle, false);
 
           // If a generic recipe was mistakenly loaded, or if the page matches a verified movie that differs from res.recipe:
-          if (matched && (isGenericRecipe || (matched.meta?.title && matched.meta.title !== res.recipe.meta?.title && effectiveUrl.includes("81760391")))) {
+          if (matched && (isGenericRecipe || (matched.meta?.title && matched.meta.title !== res.recipe.meta?.title))) {
             console.log("[EOC] Replacing stale recipe with detected movie cut:", matched.meta?.title);
             currentRecipe = matched;
             applyRecipe(matched, true);
@@ -954,7 +1009,7 @@ function checkActiveTabStatus(statusEl) {
                 const effectiveTitle = retryRes.pageTitle || tab.title || "";
                 const matched = autoDetectMovie(effectiveUrl, effectiveTitle, false);
 
-                if (matched && (isGenericRecipe || (matched.meta?.title && matched.meta.title !== retryRes.recipe.meta?.title && effectiveUrl.includes("81760391")))) {
+                if (matched && (isGenericRecipe || (matched.meta?.title && matched.meta.title !== retryRes.recipe.meta?.title))) {
                   console.log("[EOC] Replacing stale recipe with detected movie cut:", matched.meta?.title);
                   currentRecipe = matched;
                   applyRecipe(matched, true);

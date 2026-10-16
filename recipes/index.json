@@ -3,6 +3,17 @@
   "updated_at": "2026-10-13T00:00:00Z",
   "registry": [
     {
+      "imdb_id": "tt3322420",
+      "title": "Queen (4-Episode Miniseries)",
+      "year": 2014,
+      "director": "Vikas Bahl",
+      "producers": "Anurag Kashyap, Vikramaditya Motwane",
+      "runtime_seconds": 8640,
+      "total_episodes": 4,
+      "recipe_file": "queen-2014.eoc.json",
+      "pacing": "comedy_drama"
+    },
+    {
       "imdb_id": "tt22262440",
       "title": "Laapataa Ladies (4-Episode Miniseries)",
       "year": 2024,

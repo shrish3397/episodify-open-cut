@@ -700,6 +700,30 @@
   }
 
   // Principle 2: Bind directly to HTML5 video element
+  function findBestVideoElement() {
+    const videos = Array.from(document.querySelectorAll("video"));
+    if (videos.length === 0) return null;
+    if (videos.length === 1) return videos[0];
+
+    // Priority 1: Video currently playing with feature length (> 300s)
+    const playingFeature = videos.find((v) => !v.paused && v.duration > 300);
+    if (playingFeature) return playingFeature;
+
+    // Priority 2: Video currently playing
+    const playing = videos.find((v) => !v.paused && v.currentTime > 0);
+    if (playing) return playing;
+
+    // Priority 3: Video with substantial duration (> 300s)
+    const feature = videos.find((v) => Number.isFinite(v.duration) && v.duration > 300);
+    if (feature) return feature;
+
+    // Priority 4: Large visible video element
+    const visible = videos.find((v) => v.offsetWidth > 200 && v.offsetHeight > 150);
+    if (visible) return visible;
+
+    return activeVideo || videos[0];
+  }
+
   function attachVideoElement(video) {
     if (!video || activeVideo === video) return;
     activeVideo = video;
@@ -739,22 +763,32 @@
 
   // Principle 3: Single Page App (SPA) dynamic video mounting observer
   function initEpisodifyOverlay() {
-    const video = document.querySelector("video");
-    if (video) attachVideoElement(video);
-    ensureShadowHost();
-
-    const observer = new MutationObserver(() => {
-      const candidate = document.querySelector("video");
-      if (candidate && candidate !== activeVideo) {
-        attachVideoElement(candidate);
+    function checkAndAttachBestVideo() {
+      const best = findBestVideoElement();
+      if (best && best !== activeVideo) {
+        attachVideoElement(best);
         ensureShadowHost();
       }
+    }
+
+    checkAndAttachBestVideo();
+
+    const observer = new MutationObserver(() => {
+      checkAndAttachBestVideo();
     });
 
     observer.observe(document.body || document.documentElement, {
       childList: true,
       subtree: true,
     });
+
+    // Capture play events anywhere in document (e.g. when main feature starts after ad)
+    document.addEventListener("play", (e) => {
+      if (e.target && e.target.tagName === "VIDEO" && e.target !== activeVideo) {
+        attachVideoElement(e.target);
+        ensureShadowHost();
+      }
+    }, true);
 
     // Fullscreen changes
     document.addEventListener("fullscreenchange", () => {
@@ -848,11 +882,12 @@
           }
         }
       } else if (msg.action === "GET_STATUS") {
-        const v = activeVideo || document.querySelector("video");
+        const v = findBestVideoElement();
+        const detectedDuration = detectMovieDurationFromPage(v);
         sendResponse({
           hasVideo: !!v,
           currentTime: v ? v.currentTime : 0,
-          duration: v ? v.duration : 0,
+          duration: detectedDuration || (v && Number.isFinite(v.duration) ? v.duration : 0),
           recipeTitle: activeRecipe?.meta?.title || null,
           recipe: activeRecipe,
           episodesCount: activeRecipe?.episodes?.length || 0,
@@ -864,18 +899,125 @@
       }
     });
 
+    function parseDurationString(text) {
+      if (!text) return 0;
+      const s = String(text).trim();
+
+      // 1. ISO 8601 duration: PT2H24M, PT144M, PT1H58M12S
+      const isoMatch = s.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/i);
+      if (isoMatch && (isoMatch[1] || isoMatch[2] || isoMatch[3])) {
+        const h = parseInt(isoMatch[1] || "0", 10);
+        const m = parseInt(isoMatch[2] || "0", 10);
+        const sec = parseInt(isoMatch[3] || "0", 10);
+        return h * 3600 + m * 60 + sec;
+      }
+
+      // 2. Format: "2 h 24 min", "2 hr 24 m", "2 hours 24 mins", "2h 24m"
+      const hrMinMatch = s.match(/(\d+)\s*(?:h|hr|hrs|hours?)\s*(?:(\d+)\s*(?:m|min|mins|minutes?))?/i);
+      if (hrMinMatch) {
+        const h = parseInt(hrMinMatch[1], 10);
+        const m = parseInt(hrMinMatch[2] || "0", 10);
+        return h * 3600 + m * 60;
+      }
+
+      // 3. Format: "144 min", "144 mins", "144m"
+      const minMatch = s.match(/^(\d+)\s*(?:m|min|mins|minutes?)$/i);
+      if (minMatch) {
+        return parseInt(minMatch[1], 10) * 60;
+      }
+
+      // 4. Timestamp format: "02:24:00" or "144:00"
+      if (s.includes(":")) {
+        const parts = s.split(":").map(Number);
+        if (parts.length === 3 && !parts.some(isNaN)) {
+          return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2 && !parts.some(isNaN)) {
+          return parts[0] * 60 + parts[1];
+        }
+      }
+
+      return 0;
+    }
+
+    function detectMovieDurationFromPage(video) {
+      // 1. If video has a valid, finite feature length duration, use it!
+      if (video && Number.isFinite(video.duration) && video.duration > 300) {
+        return Math.round(video.duration);
+      }
+
+      // 2. Prime Video detail page runtime badge: [data-automation-id="runtime-badge"]
+      const runtimeBadges = document.querySelectorAll(
+        '[data-automation-id="runtime-badge"], [data-automation-id="dp-badges-runtime"], .dv-node-dp-badges span, span[class*="runtime"], span[class*="badge"]'
+      );
+      for (const badge of runtimeBadges) {
+        const parsed = parseDurationString(badge.textContent);
+        if (parsed > 300) return parsed;
+      }
+
+      // 3. Schema.org metadata (standard on Prime Video, Netflix, IMDb)
+      const metaDuration = document.querySelector('meta[itemprop="duration"], meta[property="video:duration"]')?.getAttribute('content');
+      if (metaDuration) {
+        const parsed = parseDurationString(metaDuration);
+        if (parsed > 300) return parsed;
+      }
+
+      // 4. JSON-LD scripts
+      const jsonLds = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const s of jsonLds) {
+        try {
+          const text = s.textContent || "";
+          const m = text.match(/"duration"\s*:\s*"([^"]+)"/);
+          if (m && m[1]) {
+            const parsed = parseDurationString(m[1]);
+            if (parsed > 300) return parsed;
+          }
+        } catch (e) {}
+      }
+
+      // 5. Prime Video player scrubber time indicator
+      const playerTimeEl = document.querySelector(
+        '.atvwebplayersdk-timeindicator-text, [data-automation-id="total-time"], [class*="timeindicator"], .rendererContainer time'
+      );
+      if (playerTimeEl) {
+        const parsed = parseDurationString(playerTimeEl.textContent);
+        if (parsed > 300) return parsed;
+      }
+
+      // 6. Netflix duration
+      const netflixDur = document.querySelector('span.duration, [data-uia="controls-time-remaining"]')?.textContent;
+      if (netflixDur) {
+        const parsed = parseDurationString(netflixDur);
+        if (parsed > 300) return parsed;
+      }
+
+      // 7. Hotstar duration
+      const hotstarDur = document.querySelector('span.player-duration, [data-testid="player-duration"]')?.textContent;
+      if (hotstarDur) {
+        const parsed = parseDurationString(hotstarDur);
+        if (parsed > 300) return parsed;
+      }
+
+      // If video has any finite duration > 60 (fallback)
+      if (video && Number.isFinite(video.duration) && video.duration > 60) {
+        return Math.round(video.duration);
+      }
+
+      return 0;
+    }
+
     function getRealMovieTitle() {
       // 1. Netflix DOM title
       const netflixTitle = document.querySelector(".video-title h4, [data-uia='video-title'], .ellipsize-text, h4.ellipsize-text")?.textContent?.trim();
       if (netflixTitle) return netflixTitle;
 
-      // 2. Check Netflix ID / URL for known movies
+      // 2. Check Netflix / Prime IDs / URL for known movies
       const url = window.location.href.toLowerCase();
       if (url.includes("81760391") || url.includes("laapataa") || url.includes("laapta")) return "Laapataa Ladies";
       if (url.includes("70270408") || url.includes("millers")) return "We're the Millers";
+      if (url.includes("0qry75b5jx2obl1p59w9bn0qxn") || url.includes("queen")) return "Queen";
 
       // 3. Prime Video DOM title
-      const primeTitle = document.querySelector("[data-automation-id='title'], h1[class*='Title']")?.textContent?.trim();
+      const primeTitle = document.querySelector("[data-automation-id='title'], h1[class*='Title'], h1.dv-node-dp-title")?.textContent?.trim();
       if (primeTitle && !primeTitle.toLowerCase().includes("prime video")) return primeTitle;
 
       // 4. Hotstar DOM title
@@ -889,6 +1031,7 @@
            .replace(/\s*-\s*Netflix.*$/i, "")
            .replace(/^Prime Video:\s*/i, "")
            .replace(/\s*\|\s*Prime Video.*$/i, "")
+           .replace(/\s*-\s*Prime Video.*$/i, "")
            .replace(/\s*on Disney\+ Hotstar.*$/i, "")
            .replace(/\s*-\s*YouTube.*$/i, "")
            .trim();
@@ -982,6 +1125,25 @@
       ]
     };
 
+    const BUILTIN_PRIME_QUEEN_4EP = {
+      $schema: "https://episodify.org/schema/v1.json",
+      meta: {
+        title: "Queen (4-Episode Miniseries)",
+        year: 2014,
+        runtime_seconds: 8640,
+        imdb_id: "tt3322420",
+        pacing: "comedy_drama",
+        generator: "eoc-core"
+      },
+      total_episodes: 4,
+      episodes: [
+        { episode_number: 1, title: "Part 1: The Solo Honeymoon", start_time: "00:00:00", end_time: "00:36:20", cliffhanger_rating: 8.9, break_rationale: "Crushed by Vijay calling off their wedding at the Delhi cafe, a devastated Rani makes the courageous decision to embark on their pre-booked Paris honeymoon completely alone, stepping out into the bustling European night.", recap_text: "In Rajouri Garden, Delhi, conservative bride Rani's world shatters when fiancé Vijay calls off their wedding one day before the ceremony. Defying family expectations, Rani packs her bags for Paris alone.", teaser_next: "Stranded in Paris with no international travel experience, Rani faces culture shock, lost directions, and a chaotic street confrontation." },
+        { episode_number: 2, title: "Part 2: Parisian Freedom", start_time: "00:36:20", end_time: "01:12:45", cliffhanger_rating: 9.3, break_rationale: "After an exhilarating, liberating night across Paris with free-spirited Vijaylaxmi, Rani boards the train to Amsterdam transformed, only to discover her new budget hostel room is shared with three unfamiliar foreign men.", recap_text: "In Paris, vibrant Indo-French hotel worker Vijaylaxmi takes Rani under her wing, helping her overcome heartbreak and taste independence for the first time.", teaser_next: "Rani arrives in free-spirited Amsterdam and must navigate sharing a tiny hostel room with three boisterous male roommates." },
+        { episode_number: 3, title: "Part 3: The Amsterdam Awakening", start_time: "01:12:45", end_time: "01:48:30", cliffhanger_rating: 9.5, break_rationale: "Rani triumphs at the Amsterdam street festival cooking Delhi golgappas and winning the crowd, but as she celebrates with her roommates, a guilt-ridden Vijay unexpectedly arrives in Amsterdam begging for her forgiveness.", recap_text: "Overcoming initial awkwardness, Rani forms an unbreakable bond with hostel roommates Taka, Tim, and Oleksandr, discovering her entrepreneurial passion making street snacks.", teaser_next: "Vijay corners Rani in Amsterdam, demanding she return to domestic life just as Rani discovers the power of her own independence." },
+        { episode_number: 4, title: "Part 4: The Triumphant Return", start_time: "01:48:30", end_time: "02:24:00", cliffhanger_rating: 8.6, break_rationale: "Rani lovingly bids farewell to her European companions, returns to Delhi, and visits Vijay only to calmly return his engagement ring with a radiant, liberating smile of absolute self-worth.", recap_text: "Rejecting Vijay's regressive demands, Rani chooses herself, turning heartbreak into a triumphant celebration of womanhood and self-realization.", teaser_next: "Series finale concludes the beloved coming-of-age comedy-drama miniseries cut of Queen." }
+      ]
+    };
+
     const BUILTIN_NETFLIX_LAAPATAA_4EP = {
       $schema: "https://episodify.org/schema/v1.json",
       meta: {
@@ -1058,6 +1220,10 @@
       const combined = url + " " + title;
 
       // 1. Auto-detect if current page is one of our verified built-in cuts
+      if (combined.includes("queen") || combined.includes("0qry75b5jx2obl1p59w9bn0qxn")) {
+        setRecipe(BUILTIN_PRIME_QUEEN_4EP);
+        return;
+      }
       if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
         setRecipe(BUILTIN_NETFLIX_LAAPATAA_4EP);
         return;

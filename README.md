@@ -254,6 +254,7 @@ The `recipes/` directory provides pre-analyzed, validated miniseries cuts for ic
 
 | Film | Year | Platform | Episodes | Recipe File |
 | :--- | :--- | :--- | :--- | :--- |
+| **Queen** | 2014 | Prime Video | 4 | [`recipes/queen-2014.eoc.json`](recipes/queen-2014.eoc.json) |
 | **Laapataa Ladies** | 2024 | Netflix | 4 | [`recipes/laapataa-ladies-2024.eoc.json`](recipes/laapataa-ladies-2024.eoc.json) |
 | **2 States** | 2014 | Hotstar | 4 | [`recipes/2-states-2014.eoc.json`](recipes/2-states-2014.eoc.json) |
 | **We're the Millers** | 2013 | Netflix | 4 | [`recipes/were-the-millers-2013.eoc.json`](recipes/were-the-millers-2013.eoc.json) |

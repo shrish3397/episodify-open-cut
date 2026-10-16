@@ -1,0 +1,54 @@
+{
+  "$schema": "https://episodify.org/schema/v1.json",
+  "meta": {
+    "title": "Queen (4-Episode Miniseries)",
+    "year": 2014,
+    "runtime_seconds": 8640,
+    "imdb_id": "tt3322420",
+    "pacing": "comedy_drama",
+    "generator": "eoc-core"
+  },
+  "total_episodes": 4,
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title": "Part 1: The Solo Honeymoon",
+      "start_time": "00:00:00",
+      "end_time": "00:36:20",
+      "cliffhanger_rating": 8.9,
+      "break_rationale": "Crushed by Vijay calling off their wedding at the Delhi cafe, a devastated Rani makes the courageous decision to embark on their pre-booked Paris honeymoon completely alone, stepping out into the bustling European night.",
+      "recap_text": "In Rajouri Garden, Delhi, conservative bride Rani's world shatters when fiancé Vijay calls off their wedding one day before the ceremony. Defying family expectations, Rani packs her bags for Paris alone.",
+      "teaser_next": "Stranded in Paris with no international travel experience, Rani faces culture shock, lost directions, and a chaotic street confrontation."
+    },
+    {
+      "episode_number": 2,
+      "title": "Part 2: Parisian Freedom",
+      "start_time": "00:36:20",
+      "end_time": "01:12:45",
+      "cliffhanger_rating": 9.3,
+      "break_rationale": "After an exhilarating, liberating night across Paris with free-spirited Vijaylaxmi, Rani boards the train to Amsterdam transformed, only to discover her new budget hostel room is shared with three unfamiliar foreign men.",
+      "recap_text": "In Paris, vibrant Indo-French hotel worker Vijaylaxmi takes Rani under her wing, helping her overcome heartbreak and taste independence for the first time.",
+      "teaser_next": "Rani arrives in free-spirited Amsterdam and must navigate sharing a tiny hostel room with three boisterous male roommates."
+    },
+    {
+      "episode_number": 3,
+      "title": "Part 3: The Amsterdam Awakening",
+      "start_time": "01:12:45",
+      "end_time": "01:48:30",
+      "cliffhanger_rating": 9.5,
+      "break_rationale": "Rani triumphs at the Amsterdam street festival cooking Delhi golgappas and winning the crowd, but as she celebrates with her roommates, a guilt-ridden Vijay unexpectedly arrives in Amsterdam begging for her forgiveness.",
+      "recap_text": "Overcoming initial awkwardness, Rani forms an unbreakable bond with hostel roommates Taka, Tim, and Oleksandr, discovering her entrepreneurial passion making street snacks.",
+      "teaser_next": "Vijay corners Rani in Amsterdam, demanding she return to domestic life just as Rani discovers the power of her own independence."
+    },
+    {
+      "episode_number": 4,
+      "title": "Part 4: The Triumphant Return",
+      "start_time": "01:48:30",
+      "end_time": "02:24:00",
+      "cliffhanger_rating": 8.6,
+      "break_rationale": "Rani lovingly bids farewell to her European companions, returns to Delhi, and visits Vijay only to calmly return his engagement ring with a radiant, liberating smile of absolute self-worth.",
+      "recap_text": "Rejecting Vijay's regressive demands, Rani chooses herself, turning heartbreak into a triumphant celebration of womanhood and self-realization.",
+      "teaser_next": "Series finale concludes the beloved coming-of-age comedy-drama miniseries cut of Queen."
+    }
+  ]
+}
