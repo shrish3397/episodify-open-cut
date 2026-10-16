@@ -4,9 +4,19 @@
   "version": "1.0.0",
   "description": "Transforms 3-hour movies into bingeable miniseries with organic act breaks and cliffhanger cards.",
   "author": "Episodify Open Cut Contributors",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Episodify Open Cut"
+    "default_title": "Episodify Open Cut",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "permissions": [
     "storage",
