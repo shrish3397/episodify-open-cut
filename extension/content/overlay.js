@@ -1044,21 +1044,15 @@
       const netflixTitle = document.querySelector(".video-title h4, [data-uia='video-title'], .ellipsize-text, h4.ellipsize-text")?.textContent?.trim();
       if (netflixTitle) return netflixTitle;
 
-      // 2. Check Netflix / Prime IDs / URL for known movies
-      const url = window.location.href.toLowerCase();
-      if (url.includes("81760391") || url.includes("laapataa") || url.includes("laapta")) return "Laapataa Ladies";
-      if (url.includes("70270408") || url.includes("millers")) return "We're the Millers";
-      if (url.includes("0qry75b5jx2obl1p59w9bn0qxn") || url.includes("queen")) return "Queen";
-
-      // 3. Prime Video DOM title
+      // 2. Prime Video DOM title
       const primeTitle = document.querySelector("[data-automation-id='title'], h1[class*='Title'], h1.dv-node-dp-title")?.textContent?.trim();
       if (primeTitle && !primeTitle.toLowerCase().includes("prime video")) return primeTitle;
 
-      // 4. Hotstar DOM title
+      // 3. Hotstar DOM title
       const hotstarTitle = document.querySelector("h1.title, [data-testid='player-title']")?.textContent?.trim();
       if (hotstarTitle) return hotstarTitle;
 
-      // 5. Clean document.title
+      // 4. Clean document.title
       let t = (document.title || "").trim();
       t = t.replace(/^Watch\s+/i, "")
            .replace(/\s*\|\s*Netflix.*$/i, "")
@@ -1070,10 +1064,20 @@
            .replace(/\s*-\s*YouTube.*$/i, "")
            .trim();
 
-      const banned = ["netflix", "prime video", "hotstar", "disney+ hotstar", "youtube", "home", "watch"];
+      const banned = ["netflix", "prime video", "hotstar", "disney+ hotstar", "youtube", "home", "watch", "video"];
       if (t && !banned.includes(t.toLowerCase())) {
         return t;
       }
+
+      // 5. Fallback: check exact catalog IDs in pathname ONLY (never search/tracking parameters)
+      const pathname = (window.location.pathname || "").toLowerCase();
+      if (pathname.includes("81760391")) return "Laapataa Ladies";
+      if (pathname.includes("70270408")) return "We're the Millers";
+      if (pathname.includes("0qry75b5jx2obl1p59w9bn0qxn")) return "Queen";
+      if (pathname.includes("1271616952")) return "2 States";
+      if (pathname.includes("1271525191")) return "Sarvam Maya";
+      if (pathname.includes("1271710275")) return "Bethlehem Kudumba Unit";
+
       return "";
     }
 
@@ -1199,13 +1203,12 @@
 
     function doesRecipeMatchPage(recipe) {
       if (!recipe || !recipe.meta) return false;
-      const url = window.location.href.toLowerCase();
-      const title = document.title.toLowerCase();
-      const combined = url + " " + title;
+      const realTitle = (getRealMovieTitle() || "").toLowerCase();
+      const pathname = (window.location.pathname || "").toLowerCase();
 
       // 1. Check IMDb ID if present
       const imdbId = (recipe.meta.imdb_id || "").toLowerCase();
-      if (imdbId && combined.includes(imdbId)) {
+      if (imdbId && (pathname.includes(imdbId) || realTitle.includes(imdbId))) {
         return true;
       }
 
@@ -1221,60 +1224,59 @@
 
       if (!cleanTitle || cleanTitle.length < 3) return false;
 
-      // Block generic platform names like "Netflix", "Prime Video", "Movie" from matching domains
-      const genericNames = ["netflix", "prime video", "primevideo", "hotstar", "disney", "youtube", "movie", "video", "home"];
+      // Block generic platform names
+      const genericNames = ["netflix", "prime video", "primevideo", "hotstar", "disney", "youtube", "movie", "video", "home", "feature film"];
       if (genericNames.includes(cleanTitle)) {
         return false;
       }
 
-      // 3. Exact slug check (e.g. "2-states", "were-the-millers", "laapataa-ladies")
+      // 3. Exact slug check against pathname or realTitle
       const slug = cleanTitle.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      if (slug && (url.includes(slug) || combined.includes(slug.replace(/-/g, " ")))) {
+      if (slug && (pathname.includes(slug) || realTitle.includes(slug.replace(/-/g, " ")))) {
         return true;
       }
 
-      // 4. Multi-word phrase check (must match full phrase, never isolated words like "states")
+      // 4. Multi-word phrase check
       const words = cleanTitle.split(/\s+/).filter((w) => w.length >= 2);
       if (words.length >= 2) {
         const phrase = words.join(" ");
-        if (combined.includes(phrase)) return true;
+        if (realTitle.includes(phrase)) return true;
         const hyphenPhrase = words.join("-");
-        if (combined.includes(hyphenPhrase)) return true;
+        if (pathname.includes(hyphenPhrase)) return true;
         return false;
-      } else if (words.length === 1 && words[0].length >= 5) {
-        return combined.includes(words[0]);
+      } else if (words.length === 1 && words[0].length >= 3) {
+        return new RegExp(`\\b${words[0]}\\b`, "i").test(realTitle);
       }
 
       return false;
     }
 
     function evaluatePageRecipe() {
-      const url = window.location.href.toLowerCase();
-      const title = document.title.toLowerCase();
-      const combined = url + " " + title;
+      const realTitle = (getRealMovieTitle() || "").toLowerCase();
+      const pathname = (window.location.pathname || "").toLowerCase();
 
-      // 1. Auto-detect if current page is one of our verified built-in cuts
-      if (combined.includes("queen") || combined.includes("0qry75b5jx2obl1p59w9bn0qxn")) {
+      // 1. Auto-detect if current page is one of our verified built-in cuts (using exact ID or word-boundary title)
+      if (pathname.includes("0qry75b5jx2obl1p59w9bn0qxn") || (realTitle && /\bqueen\b/i.test(realTitle))) {
         setRecipe(BUILTIN_PRIME_QUEEN_4EP);
         return;
       }
-      if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
+      if (pathname.includes("81760391") || (realTitle && (/\blaapataa\b/i.test(realTitle) || /\blaapta\b/i.test(realTitle)))) {
         setRecipe(BUILTIN_NETFLIX_LAAPATAA_4EP);
         return;
       }
-      if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
+      if (pathname.includes("1271616952") || (realTitle && /\b2\s*states\b/i.test(realTitle))) {
         setRecipe(BUILTIN_HOTSTAR_2STATES_4EP);
         return;
       }
-      if (combined.includes("millers") || combined.includes("70270408")) {
+      if (pathname.includes("70270408") || (realTitle && /\bmillers\b/i.test(realTitle))) {
         setRecipe(BUILTIN_NETFLIX_MILLERS_4EP);
         return;
       }
-      if (combined.includes("sarvam") || combined.includes("1271525191")) {
+      if (pathname.includes("1271525191") || (realTitle && /\bsarvam\b/i.test(realTitle))) {
         setRecipe(BUILTIN_HOTSTAR_SARVAM_MAYA_6EP);
         return;
       }
-      if (combined.includes("bethlehem") || combined.includes("1271710275")) {
+      if (pathname.includes("1271710275") || (realTitle && /\bbethlehem\b/i.test(realTitle))) {
         setRecipe(BUILTIN_HOTSTAR_BETHLEHEM_8EP);
         return;
       }
@@ -1290,7 +1292,7 @@
         }
 
         // 3. If storage has active_recipe, ONLY accept if it genuinely matches this page (and not a generic title)
-        const isGeneric = ["netflix", "prime video", "movie"].some((g) => (res?.active_recipe?.meta?.title || "").toLowerCase().includes(g));
+        const isGeneric = ["netflix", "prime video", "movie", "feature film"].some((g) => (res?.active_recipe?.meta?.title || "").toLowerCase().includes(g));
         if (res?.active_recipe && !isGeneric && doesRecipeMatchPage(res.active_recipe)) {
           console.log("[EOC-Shadow] Verified stored recipe matches current page:", res.active_recipe.meta?.title);
           setRecipe(res.active_recipe);

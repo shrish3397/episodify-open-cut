@@ -828,31 +828,38 @@ function jumpToEpisode(epNum) {
 
 // Auto-detect movie from page URL or title across built-in & online registry
 function autoDetectMovie(url = "", title = "", autoApply = false) {
-  const combined = (url + " " + title).toLowerCase();
+  const cleanTitle = cleanMovieTitle(title).toLowerCase();
+  let pathname = "";
+  try {
+    pathname = new URL(url).pathname.toLowerCase();
+  } catch (e) {
+    pathname = (url || "").split("?")[0].toLowerCase();
+  }
+
   const movieSelect = document.getElementById("movie-select");
   if (!movieSelect || movieSelect.value === "custom") return null;
 
-  // 1. Check built-in recipes
+  // 1. Check built-in recipes using exact ID in pathname or regex word-boundaries on title
   let matchedKey = null;
-  if (combined.includes("queen") || combined.includes("0qry75b5jx2obl1p59w9bn0qxn")) {
+  if (pathname.includes("0qry75b5jx2obl1p59w9bn0qxn") || /\bqueen\b/i.test(cleanTitle)) {
     matchedKey = "queen";
-  } else if (combined.includes("laapataa") || combined.includes("laapta") || combined.includes("81760391")) {
+  } else if (pathname.includes("81760391") || /\blaapataa\b/i.test(cleanTitle) || /\blaapta\b/i.test(cleanTitle)) {
     matchedKey = "laapataa-ladies";
-  } else if (combined.includes("2-states") || combined.includes("2 states") || combined.includes("1271616952")) {
+  } else if (pathname.includes("1271616952") || /\b2\s*states\b/i.test(cleanTitle)) {
     matchedKey = "2-states";
-  } else if (combined.includes("millers") || combined.includes("70270408")) {
+  } else if (pathname.includes("70270408") || /\bmillers\b/i.test(cleanTitle)) {
     matchedKey = "were-the-millers";
-  } else if (combined.includes("khoobsurat") || combined.includes("0lm2egozqqutdbb29smpp6mtxr")) {
+  } else if (pathname.includes("0lm2egozqqutdbb29smpp6mtxr") || /\bkhoobsurat\b/i.test(cleanTitle)) {
     matchedKey = "khoobsurat";
-  } else if (combined.includes("sarvam") || combined.includes("1271525191")) {
+  } else if (pathname.includes("1271525191") || /\bsarvam\b/i.test(cleanTitle)) {
     matchedKey = "sarvam-maya";
-  } else if (combined.includes("bethlehem") || combined.includes("1271710275")) {
+  } else if (pathname.includes("1271710275") || /\bbethlehem\b/i.test(cleanTitle)) {
     matchedKey = "bethlehem-8ep";
-  } else if (combined.includes("batman")) matchedKey = "the-batman";
-  else if (combined.includes("dune")) matchedKey = "dune-2";
-  else if (combined.includes("endgame") || combined.includes("avengers")) matchedKey = "endgame";
-  else if (combined.includes("godfather")) matchedKey = "godfather";
-  else if (combined.includes("oppenheimer")) matchedKey = "oppenheimer";
+  } else if (/\bbatman\b/i.test(cleanTitle)) matchedKey = "the-batman";
+  else if (/\bdune\b/i.test(cleanTitle)) matchedKey = "dune-2";
+  else if (/\bendgame\b/i.test(cleanTitle) || /\bavengers\b/i.test(cleanTitle)) matchedKey = "endgame";
+  else if (/\bgodfather\b/i.test(cleanTitle)) matchedKey = "godfather";
+  else if (/\boppenheimer\b/i.test(cleanTitle)) matchedKey = "oppenheimer";
 
   if (matchedKey && BUILTIN_RECIPES[matchedKey]) {
     movieSelect.value = matchedKey;
@@ -866,8 +873,8 @@ function autoDetectMovie(url = "", title = "", autoApply = false) {
   // 2. Check online registry
   for (const entry of onlineRegistry) {
     const entrySlug = entry.title.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const cleanCombined = combined.replace(/[^a-z0-9]/g, "");
-    if (cleanCombined.includes(entrySlug)) {
+    const cleanT = cleanTitle.replace(/[^a-z0-9]/g, "");
+    if (cleanT.length >= 3 && cleanT.includes(entrySlug)) {
       const val = `registry:${entry.recipe_file}`;
       movieSelect.value = val;
       if (autoApply) {
@@ -1327,6 +1334,65 @@ function cleanAndValidateRecipe(raw, fallbackTitle, durationSec, numEpisodes) {
   };
 }
 
+// Query Google ModelService dynamically to find active models for this user's API key
+async function getAvailableGeminiModels(apiKey) {
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const models = data?.models || [];
+      const contentModels = models
+        .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
+        .map((m) => m.name.replace(/^models\//, ""));
+
+      // Priority list of modern Flash models
+      const priorityOrder = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-2.0-flash-exp",
+        "gemini-flash"
+      ];
+
+      const orderedList = [];
+      for (const p of priorityOrder) {
+        if (contentModels.includes(p)) orderedList.push(p);
+      }
+      for (const m of contentModels) {
+        if (!orderedList.includes(m) && m.includes("flash")) orderedList.push(m);
+      }
+      for (const m of contentModels) {
+        if (!orderedList.includes(m)) orderedList.push(m);
+      }
+
+      if (orderedList.length > 0) {
+        console.log("[EOC-AI] Dynamically detected supported models:", orderedList);
+        return orderedList;
+      }
+    } else {
+      const errJson = await resp.json().catch(() => ({}));
+      if (resp.status === 400 || resp.status === 403) {
+        throw new Error(errJson?.error?.message || "Invalid or unauthorized Google Gemini API key. Please generate a new free key at https://aistudio.google.com/app/apikey");
+      }
+    }
+  } catch (err) {
+    if (err.message && err.message.includes("Invalid or unauthorized")) throw err;
+    console.warn("[EOC-AI] Could not list models dynamically, falling back to priority list:", err.message);
+  }
+
+  return [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-2.0-flash-exp"
+  ];
+}
+
 // Call Google Gemini REST API to slice film into miniseries
 async function generateAiCutWithGemini({ apiKey, movieTitle, durationSec, numEpisodes, cues = [] }) {
   const durationFormatted = secondsToTimestamp(durationSec);
@@ -1383,9 +1449,12 @@ Respond ONLY with valid JSON matching this exact structure:
   ]
 }`;
 
+  const candidateModels = await getAvailableGeminiModels(apiKey);
   let lastError = null;
-  for (const model of ["gemini-2.5-flash", "gemini-1.5-flash"]) {
+
+  for (const model of candidateModels) {
     try {
+      console.log(`[EOC-AI] Requesting narrative slice with model: ${model}`);
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: "POST",
@@ -1407,7 +1476,7 @@ Respond ONLY with valid JSON matching this exact structure:
 
       const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error("Empty response from Gemini API");
+      if (!rawText) throw new Error(`${model} returned empty response`);
 
       const parsed = JSON.parse(rawText);
       return cleanAndValidateRecipe(parsed, movieTitle, durationSec, numEpisodes);
