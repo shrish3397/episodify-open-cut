@@ -527,7 +527,6 @@
   }
 
   // Synchronized In-Player Floating HUD (Auto-vanishes after 7 seconds)
-  let hudHideTimer = null;
   let lastReportedEpisodeNum = null;
   let lastUserActivity = 0;
 
