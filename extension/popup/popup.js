@@ -620,7 +620,12 @@ function updateUI() {
   }
 
   const meta = currentRecipe.meta || {};
-  if (metaTitle) metaTitle.textContent = meta.title || "Unknown Film";
+  if (metaTitle) {
+    const rawTitle = meta.title || "Unknown Film";
+    const cleanTitle = rawTitle.replace(/\s*\(\d+[- ](?:episode|part)[^)]*\)/i, "").trim();
+    metaTitle.textContent = cleanTitle || rawTitle;
+    metaTitle.title = meta.title || "";
+  }
   if (metaYear) metaYear.textContent = meta.year || "";
 
   if (movieSelect) {

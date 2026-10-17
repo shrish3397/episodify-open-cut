@@ -401,39 +401,31 @@
 
     const v = activeVideo || document.querySelector("video");
     if (v) {
-      // 1. Try native play button if player has one rendered (Prime Video, Hotstar, YouTube)
+      // 1. Only click a native play button if it EXPLICITLY is a Play button and NOT a Pause/toggle button
       try {
         const playBtn = document.querySelector(
-          'button[aria-label*="Play" i], button[title*="Play" i], [data-testid*="play" i], button.play-pause-btn, .atvwebplayersdk-playpause-button'
+          'button[aria-label*="Play" i]:not([aria-label*="Pause" i]):not([aria-label*="Playlist" i]), button[title*="Play" i]:not([title*="Pause" i]), [data-testid*="play" i]:not([data-testid*="pause" i])'
         );
-        if (playBtn && !playBtn.getAttribute("aria-label")?.toLowerCase().includes("playlist")) {
+        if (playBtn) {
           playBtn.click();
         }
       } catch (e) {}
 
-      // 2. Direct HTML5 video play
-      try {
-        const p = v.play();
-        if (p !== undefined) {
-          p.catch(() => {
-            // Autoplay policy or player state fallback: dispatch Space
-            try {
-              const targets = [v, v.parentElement, document.activeElement].filter(Boolean);
-              targets.forEach((target) => {
-                target.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", keyCode: 32, which: 32, bubbles: true, cancelable: true }));
-                target.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space", keyCode: 32, which: 32, bubbles: true, cancelable: true }));
-              });
-            } catch (e) {}
+      // 2. Direct HTML5 video play (if paused)
+      if (v.paused) {
+        try {
+          v.play().catch((err) => {
+            console.log("[EOC-Shadow] Video play waiting for buffer:", err);
           });
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
 
-      // 3. Fallback verification after 150ms
+      // 3. Fallback verification after 200ms
       setTimeout(() => {
         if (v && v.paused && !isBreakActive) {
           try { v.play().catch(() => {}); } catch (e) {}
         }
-      }, 150);
+      }, 200);
     }
 
     showHud(7);
@@ -473,14 +465,12 @@
         resumeVideoPlayback();
       };
 
-      if (v.readyState >= 2 && !v.seeking) {
-        doResume();
-      } else {
-        v.addEventListener("seeked", doResume, { once: true });
-        v.addEventListener("canplay", doResume, { once: true });
-        // Guaranteed fast fallback: within 250ms max, trigger resume regardless
-        setTimeout(doResume, 250);
-      }
+      // Always wait for seeked or canplay event before attempting play
+      v.addEventListener("seeked", doResume, { once: true });
+      v.addEventListener("canplay", doResume, { once: true });
+
+      // Fallback in case seeked already completed or didn't fire
+      setTimeout(doResume, 800);
     } else {
       showHud(7);
     }
