@@ -19,44 +19,30 @@
     if (event.source !== window || !event.data || event.data.source !== "EOC_CONTENT") return;
 
     const { action } = event.data;
-    const player = getNetflixPlayer();
 
-    if (action === "NETFLIX_SEEK") {
-      const ms = event.data.timeMs;
-      if (player) {
-        player.seek(ms);
-        player.play();
-        console.log("[EOC Bridge] Netflix seeked to", ms, "ms");
+    try {
+      const player = getNetflixPlayer();
+      if (!player) return;
+
+      if (action === "NETFLIX_SEEK") {
+        const ms = event.data.timeMs;
+        if (typeof player.seek === "function") {
+          player.seek(ms);
+          console.log("[EOC Bridge] Netflix seeked to", ms, "ms");
+        }
+      } else if (action === "NETFLIX_PAUSE") {
+        if (typeof player.pause === "function") {
+          player.pause();
+        }
+      } else if (action === "NETFLIX_PLAY") {
+        if (typeof player.play === "function") {
+          player.play();
+        }
       }
-    } else if (action === "NETFLIX_PAUSE") {
-      if (player) {
-        player.pause();
-      }
-    } else if (action === "NETFLIX_PLAY") {
-      if (player) {
-        player.play();
-      }
+    } catch (err) {
+      console.warn("[EOC Bridge] Action failed:", action, err);
     }
   });
-
-  // Periodically report status back to content script
-  setInterval(() => {
-    const player = getNetflixPlayer();
-    if (player) {
-      try {
-        const curMs = player.getCurrentTime();
-        const durationMs = player.getDuration();
-        const isPaused = player.isPaused();
-        window.postMessage({
-          source: "EOC_NETFLIX_BRIDGE",
-          action: "STATUS_UPDATE",
-          currentTimeSec: curMs / 1000,
-          durationSec: durationMs / 1000,
-          isPaused: isPaused,
-        }, "*");
-      } catch (e) {}
-    }
-  }, 400);
 
   console.log("[EOC Bridge] Netflix Main-World API Bridge initialized.");
 })();

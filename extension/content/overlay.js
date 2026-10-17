@@ -301,39 +301,43 @@
   function haltVideoPlayback(targetSec) {
     console.log("[EOC-Shadow] Halting video playback pipeline...");
 
+    const isNetflix = location.hostname.includes("netflix.com");
+
     // 1. Netflix bridge message
-    if (location.hostname.includes("netflix.com")) {
+    if (isNetflix) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
     }
 
     const v = activeVideo || document.querySelector("video");
 
-    // 2. Direct HTML5 pause & position lock
+    // 2. Direct HTML5 pause & position lock (Never set currentTime on Netflix directly as it triggers DRM M7375)
     if (v) {
       try {
         v.pause();
-        if (typeof targetSec === "number") {
+        if (typeof targetSec === "number" && !isNetflix) {
           v.currentTime = targetSec;
         }
       } catch (e) {}
     }
 
-    // 3. Dispatch Spacebar and 'k' keyboard events to player element & window
-    try {
-      const keyEvents = [
-        { key: " ", code: "Space", keyCode: 32, which: 32 },
-        { key: "k", code: "KeyK", keyCode: 75, which: 75 },
-      ];
-      const targets = [v, v?.parentElement, document.activeElement, document.body, window].filter(Boolean);
-      keyEvents.forEach(({ key, code, keyCode, which }) => {
-        targets.forEach((target) => {
-          try {
-            target.dispatchEvent(new KeyboardEvent("keydown", { key, code, keyCode, which, bubbles: true, cancelable: true }));
-            target.dispatchEvent(new KeyboardEvent("keyup", { key, code, keyCode, which, bubbles: true, cancelable: true }));
-          } catch (e) {}
+    // 3. For non-Netflix OTTs, dispatch Spacebar and 'k' keyboard events
+    if (!isNetflix) {
+      try {
+        const keyEvents = [
+          { key: " ", code: "Space", keyCode: 32, which: 32 },
+          { key: "k", code: "KeyK", keyCode: 75, which: 75 },
+        ];
+        const targets = [v, v?.parentElement, document.activeElement].filter(Boolean);
+        keyEvents.forEach(({ key, code, keyCode, which }) => {
+          targets.forEach((target) => {
+            try {
+              target.dispatchEvent(new KeyboardEvent("keydown", { key, code, keyCode, which, bubbles: true, cancelable: true }));
+              target.dispatchEvent(new KeyboardEvent("keyup", { key, code, keyCode, which, bubbles: true, cancelable: true }));
+            } catch (e) {}
+          });
         });
-      });
-    } catch (e) {}
+      } catch (e) {}
+    }
 
     // 4. Click native OTT pause button if visible
     try {
@@ -365,7 +369,7 @@
         clearInterval(pauseEnforcementInterval);
         pauseEnforcementInterval = null;
       }
-    }, 100);
+    }, 150);
   }
 
   function resumeVideoPlayback() {
@@ -384,9 +388,14 @@
   }
 
   function seekVideoPlayback(targetSec) {
-    if (location.hostname.includes("netflix.com")) {
+    const isNetflix = location.hostname.includes("netflix.com");
+
+    if (isNetflix) {
+      // Direct exclusively to Netflix main-world API; never mutate video.currentTime directly on Netflix!
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_SEEK", timeMs: Math.round(targetSec * 1000) }, "*");
+      return;
     }
+
     const v = activeVideo || document.querySelector("video");
     if (v) {
       try {
@@ -561,29 +570,15 @@
     const remaining = Math.max(0, endSec - currentSec);
     const remMins = Math.floor(remaining / 60);
     const remSecs = remaining % 60;
-    const isNotLast = currentEp.episode_number < activeRecipe.episodes.length;
+    const rawEpTitle = currentEp.title || "";
+    const displayTitle = rawEpTitle.toLowerCase().startsWith("part ")
+      ? rawEpTitle
+      : `Part ${currentEp.episode_number}: ${rawEpTitle}`;
 
     hudElement.innerHTML = `
-      <span class="eoc-hud-title">Part ${currentEp.episode_number}: ${currentEp.title}</span>
+      <span class="eoc-hud-title">${displayTitle}</span>
       <span class="eoc-hud-time">⏱️ ${remMins}m ${remSecs}s remaining</span>
-      ${isNotLast ? `
-        <div class="eoc-hud-nudge">
-          <button type="button" class="eoc-nudge-btn" id="eoc-nudge-prev" title="Shift cut point 1m earlier">◀ -1m</button>
-          <button type="button" class="eoc-nudge-btn" id="eoc-nudge-next" title="Shift cut point 1m later">+1m ▶</button>
-        </div>
-      ` : ""}
     `;
-
-    if (isNotLast) {
-      hudElement.querySelector("#eoc-nudge-prev")?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        nudgeCurrentCut(-60, currentSec);
-      });
-      hudElement.querySelector("#eoc-nudge-next")?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        nudgeCurrentCut(60, currentSec);
-      });
-    }
 
     hudElement.classList.remove("hidden");
     resetHudAutohideTimer();
