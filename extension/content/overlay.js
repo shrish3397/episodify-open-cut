@@ -457,11 +457,10 @@
       <div class="eoc-break-card">
         <div class="eoc-badge-row">
           <span class="eoc-badge eoc-badge-act">Part ${episode.episode_number} Complete</span>
-          <span class="eoc-badge eoc-badge-cliffhanger">★ Suspense: ${episode.cliffhanger_rating}/10</span>
         </div>
         <h2 class="eoc-card-title">${episode.title}</h2>
         <div class="eoc-card-meta">
-          ${episode.start_time} ➔ ${episode.end_time} &bull; Break Rationale: ${episode.break_rationale}
+          ${episode.start_time} ➔ ${episode.end_time}
         </div>
 
         <div class="eoc-panels">

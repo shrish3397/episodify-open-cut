@@ -590,16 +590,15 @@ function updateUI() {
     }
     if (metaTitle) metaTitle.textContent = "Normal Playback Active";
     if (metaYear) metaYear.textContent = "";
-    if (metaRuntime) metaRuntime.textContent = "No pauses or cut cards";
-    if (metaEpisodesCount) metaEpisodesCount.textContent = "Episodify Standby";
+    if (metaRuntime) metaRuntime.textContent = "No cuts active";
+    if (metaEpisodesCount) metaEpisodesCount.textContent = "Standby";
     if (listContainer) {
       listContainer.innerHTML = `
         <div class="empty-standby-state">
-          <div style="font-size: 26px; margin-bottom: 8px;">⏸️</div>
-          <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Standby Mode Active</div>
-          <div style="color: var(--text-muted); font-size: 11px; line-height: 1.4;">
-            Your video plays normally without interruptions.<br>
-            To slice this video into miniseries episodes, choose a cut above or click <b>⚡ Episodify</b>.
+          <div class="empty-standby-icon">⏸️</div>
+          <div class="empty-standby-text">
+            Video is playing normally without cuts.<br>
+            Choose a cut above or click <b>⚡ Episodify</b>.
           </div>
         </div>
       `;
@@ -645,7 +644,7 @@ function updateUI() {
   const runtimeSec = meta.runtime_seconds || 0;
   const hrs = Math.floor(runtimeSec / 3600);
   const mins = Math.floor((runtimeSec % 3600) / 60);
-  if (metaRuntime) metaRuntime.textContent = `${hrs}h ${mins}m runtime`;
+  if (metaRuntime) metaRuntime.textContent = `${hrs > 0 ? hrs + "h " : ""}${mins}m runtime`;
   if (metaEpisodesCount) {
     metaEpisodesCount.textContent = `${currentRecipe.total_episodes || currentRecipe.episodes?.length || 0} Episodes`;
   }
@@ -653,72 +652,34 @@ function updateUI() {
   if (listContainer) {
     listContainer.innerHTML = "";
 
-  (currentRecipe.episodes || []).forEach((ep) => {
-    const item = document.createElement("div");
-    item.className = "episode-item";
-    const isFirstEp = ep.episode_number === 1;
-    const rawEpTitle = ep.title || "";
-    const displayTitle = rawEpTitle.toLowerCase().startsWith("part ")
-      ? rawEpTitle
-      : `Part ${ep.episode_number}: ${rawEpTitle}`;
+    (currentRecipe.episodes || []).forEach((ep) => {
+      const item = document.createElement("div");
+      item.className = "episode-item";
+      const rawEpTitle = ep.title || "";
+      const displayTitle = rawEpTitle.toLowerCase().startsWith("part ")
+        ? rawEpTitle
+        : `Part ${ep.episode_number}: ${rawEpTitle}`;
 
-    item.innerHTML = `
-      <div style="width: 100%;">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <div class="episode-info">
-            <div class="episode-item-title">${displayTitle}</div>
-            <div class="episode-item-meta">
-              <span>${ep.start_time} - ${ep.end_time}</span>
-              <span class="episode-cliffhanger">★ ${ep.cliffhanger_rating}/10</span>
-            </div>
-          </div>
-          <div class="episode-actions">
-            <button type="button" class="play-ep-btn" data-ep="${ep.episode_number}" title="Play Part ${ep.episode_number}">
-              ▶ Play
-            </button>
-            ${!isFirstEp ? `<button type="button" class="calib-toggle-btn" data-ep="${ep.episode_number}" title="Adjust cut timing">⚙️</button>` : ""}
-          </div>
+      const durSec = timestampToSeconds(ep.end_time) - timestampToSeconds(ep.start_time);
+      const durMins = Math.max(1, Math.round(durSec / 60));
+
+      item.innerHTML = `
+        <div class="episode-info">
+          <div class="episode-item-title">${displayTitle}</div>
+          <div class="episode-item-meta">${ep.start_time} – ${ep.end_time} &bull; ${durMins}m</div>
         </div>
-        ${!isFirstEp ? `
-          <div class="calibration-panel" id="calib-panel-${ep.episode_number}" style="display: none;">
-            <button type="button" class="nudge-btn nudge-minus" data-ep="${ep.episode_number}" title="Shift start 10s earlier">◀ -10s</button>
-            <button type="button" class="nudge-btn nudge-plus" data-ep="${ep.episode_number}" title="Shift start 10s later">+10s ▶</button>
-            <button type="button" class="set-now-btn" data-ep="${ep.episode_number}" title="Set Part ${ep.episode_number} start to current video playback time">📍 Set to Video Time</button>
-          </div>
-        ` : ""}
-      </div>
-    `;
+        <button type="button" class="play-ep-btn" data-ep="${ep.episode_number}" title="Play Part ${ep.episode_number}">
+          ▶ Play
+        </button>
+      `;
 
-    const btn = item.querySelector(".play-ep-btn");
-    btn.addEventListener("click", () => {
-      jumpToEpisode(ep.episode_number);
+      const btn = item.querySelector(".play-ep-btn");
+      btn.addEventListener("click", () => {
+        jumpToEpisode(ep.episode_number);
+      });
+
+      listContainer.appendChild(item);
     });
-
-    if (!isFirstEp) {
-      const calibToggle = item.querySelector(".calib-toggle-btn");
-      const calibPanel = item.querySelector(`#calib-panel-${ep.episode_number}`);
-      calibToggle?.addEventListener("click", () => {
-        calibPanel.style.display = calibPanel.style.display === "none" ? "flex" : "none";
-      });
-
-      const minusBtn = item.querySelector(".nudge-minus");
-      minusBtn?.addEventListener("click", () => {
-        nudgeEpisodeStart(ep.episode_number, -10);
-      });
-
-      const plusBtn = item.querySelector(".nudge-plus");
-      plusBtn?.addEventListener("click", () => {
-        nudgeEpisodeStart(ep.episode_number, 10);
-      });
-
-      const setNowBtn = item.querySelector(".set-now-btn");
-      setNowBtn?.addEventListener("click", () => {
-        setEpisodeStartToCurrentVideoTime(ep.episode_number);
-      });
-    }
-
-    listContainer.appendChild(item);
-  });
   }
 }
 
@@ -1411,14 +1372,14 @@ async function generateAiCutWithGemini({ apiKey, movieTitle, durationSec, numEpi
   const prompt = `You are an expert series showrunner and editor for "Episodify Open Cut".
 Your mission is to re-engineer the film "${movieTitle}" (runtime: ${durationFormatted}, ${durationSec} seconds) into a bingeable ${numEpisodes}-episode miniseries.
 
-Each episode should be approximately ~${targetActMinutes} minutes long, cutting strictly at natural narrative cliffhangers, dramatic revelations, high-stakes dilemmas, or poignant emotional turning points.
+Each episode should be approximately ~${targetActMinutes} minutes long, cutting strictly at natural narrative act breaks, dramatic revelations, high-stakes dilemmas, or poignant emotional turning points.
 
 Requirements:
 1. Divide the movie into EXACTLY ${numEpisodes} continuous episodes.
 2. Continuity: Episode 1 MUST start at "00:00:00". For all subsequent episodes, start_time must equal the exact end_time of the preceding episode. The final episode MUST end at "${durationFormatted}".
 3. Cliffhanger Rating: Assign a suspense/cliffhanger rating between 7.0 and 9.9 for each episode break.
 4. Episode Titles: Cinematic episode titles (e.g. "Part 1: The Inciting Spark").
-5. Break Rationale: A 1-2 sentence dramatic explanation of why this specific moment serves as an unforgettable cliffhanger.
+5. Break Rationale: A 1-2 sentence dramatic explanation of why this specific moment serves as a compelling episodic break.
 6. Recap Text: A 2-sentence summary of the preceding events suitable for an episodic "Previously On" card.
 7. Teaser Next: A 1-sentence thrilling teaser for what comes next.
 ${subtitleContext}
@@ -1666,7 +1627,7 @@ function setupAiSlicerModal() {
 
     const steps = [
       "Analyzing screenplay act breaks & character arcs...",
-      "Detecting high-stakes cliffhangers & dramatic peaks...",
+      "Detecting dramatic act breaks & narrative turning points...",
       "Formatting episodic recaps and next-part teasers...",
       "Verifying zero-gap scene boundary continuity...",
     ];

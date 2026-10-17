@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="popup-container">
+    <!-- Header: Brand + Live Player Status -->
     <header class="header">
       <div class="brand">
         <span class="brand-badge">EOC</span>
@@ -15,93 +16,89 @@
       </div>
       <div class="status-indicator" id="player-status" title="Streaming player status">
         <span class="status-dot"></span>
-        <span class="status-text">Detecting Player...</span>
+        <span class="status-text">Detecting...</span>
       </div>
     </header>
 
-    <!-- Playback Mode Status Banner -->
-    <section class="mode-banner" id="mode-banner">
-      <div class="mode-info">
-        <span class="mode-pill status-standby" id="mode-pill">⏸️ Standby</span>
-        <span class="mode-desc" id="mode-desc">Normal video playback (no cuts)</span>
+    <!-- Minimal Hero Card: Playback Info + Cut Selector + Toggle -->
+    <section class="hero-card" id="hero-card">
+      <div class="hero-header">
+        <div class="hero-titles">
+          <h2 id="meta-title" class="meta-title">Normal Playback Active</h2>
+          <div class="meta-sub">
+            <span id="meta-runtime">No cuts active</span> &bull;
+            <span id="meta-episodes-count">Standby</span>
+            <span id="meta-year" style="display: none;"></span>
+          </div>
+        </div>
+        <button type="button" id="toggle-episodify-btn" class="toggle-btn toggle-btn-enable" title="Toggle Episodify for this video">
+          ⚡ Episodify
+        </button>
       </div>
-      <button type="button" id="toggle-episodify-btn" class="toggle-btn toggle-btn-enable" title="Toggle Episodify for this video">
-        ⚡ Episodify
-      </button>
-    </section>
 
-    <section class="section">
-      <div class="section-title-row">
-        <label class="section-label" for="movie-select">Select Movie Cut</label>
-        <span class="registry-tag" id="registry-tag">🌐 Open Registry</span>
-      </div>
+      <!-- Cut Dropdown Selector -->
       <div class="select-wrapper">
         <select id="movie-select" class="movie-select">
-          <option value="none" selected>⏸️ Standby (Normal Playback - No Cuts)</option>
-          <option value="auto">✨ Auto-Detect from Current Video</option>
-          <option value="queen">🎬 Queen (4 Episodes - ~36m each)</option>
-          <option value="laapataa-ladies">🎬 Laapataa Ladies (4 Episodes - ~31m each)</option>
-          <option value="2-states">🎬 2 States (4 Episodes - ~37m each)</option>
-          <option value="were-the-millers">🎬 We're the Millers (4 Episodes - ~27m each)</option>
-          <option value="khoobsurat">🎬 Khoobsurat (4 Episodes - ~29m each)</option>
-          <option value="sarvam-maya">🎬 Sarvam Maya (6 Episodes - ~24m each)</option>
-          <option value="bethlehem-8ep">🎬 Bethlehem Kudumba Unit (8 Episodes - ~19m each)</option>
-          <option value="bethlehem-6ep">🎬 Bethlehem Kudumba Unit (6 Episodes - ~26m each)</option>
-          <option value="bethlehem-4ep">Bethlehem Kudumba Unit (4 Episodes - ~39m each)</option>
-          <option value="the-batman">The Batman (2022) - 4 Episodes</option>
-          <option value="dune-2">Dune: Part Two (2024) - 4 Episodes</option>
-          <option value="endgame">Avengers: Endgame (2019) - 4 Episodes</option>
-          <option value="godfather">The Godfather (1972) - 4 Episodes</option>
-          <option value="oppenheimer">Oppenheimer (2023) - 4 Episodes</option>
-          <option value="custom">📁 Load Local .eoc.json File...</option>
+          <option value="none" selected>⏸️ Standby (Normal Playback)</option>
+          <option value="auto">✨ Auto-Detect from Video</option>
+          <option value="queen">🎬 Queen (4 Episodes)</option>
+          <option value="laapataa-ladies">🎬 Laapataa Ladies (4 Episodes)</option>
+          <option value="2-states">🎬 2 States (4 Episodes)</option>
+          <option value="were-the-millers">🎬 We're the Millers (4 Episodes)</option>
+          <option value="khoobsurat">🎬 Khoobsurat (4 Episodes)</option>
+          <option value="sarvam-maya">🎬 Sarvam Maya (6 Episodes)</option>
+          <option value="bethlehem-8ep">🎬 Bethlehem Kudumba Unit (8 Eps)</option>
+          <option value="bethlehem-6ep">🎬 Bethlehem Kudumba Unit (6 Eps)</option>
+          <option value="bethlehem-4ep">🎬 Bethlehem Kudumba Unit (4 Eps)</option>
+          <option value="the-batman">The Batman (4 Episodes)</option>
+          <option value="dune-2">Dune: Part Two (4 Episodes)</option>
+          <option value="endgame">Avengers: Endgame (4 Episodes)</option>
+          <option value="godfather">The Godfather (4 Episodes)</option>
+          <option value="oppenheimer">Oppenheimer (4 Episodes)</option>
+          <option value="custom">📁 Open Local .eoc.json File...</option>
         </select>
       </div>
 
+      <!-- Backward compatibility hidden markers -->
+      <span id="mode-pill" style="display: none;"></span>
+      <span id="mode-desc" style="display: none;"></span>
+      <span id="registry-tag" style="display: none;"></span>
       <input type="file" id="custom-file-input" accept=".json,.eoc.json" style="display: none;">
 
+      <!-- Stream Runtime Mismatch Alert Banner -->
       <div id="mismatch-banner" class="mismatch-banner" style="display: none;">
         <span class="mismatch-text" id="mismatch-text">⚠️ Stream differs from recipe duration.</span>
         <button type="button" id="rescale-btn" class="rescale-btn">⚡ Auto-Align to Stream</button>
       </div>
     </section>
 
-    <section class="movie-meta-card" id="movie-meta-card">
-      <div class="meta-header">
-        <h2 id="meta-title" class="meta-title">Normal Playback Active</h2>
-        <span id="meta-year" class="meta-year"></span>
-      </div>
-      <div class="meta-sub">
-        <span id="meta-runtime">No pauses or cut cards</span> &bull;
-        <span id="meta-episodes-count">Episodify Standby</span>
-      </div>
-    </section>
-
-    <section class="section">
+    <!-- Episodes Section -->
+    <section class="episodes-section">
       <div class="section-header">
-        <span class="section-label">Episodes & Acts</span>
+        <span class="section-label">Episodes</span>
       </div>
       <div id="episodes-list" class="episodes-list">
         <div class="empty-standby-state">
-          <div style="font-size: 26px; margin-bottom: 8px;">⏸️</div>
-          <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Standby Mode Active</div>
-          <div style="color: var(--text-muted); font-size: 11px; line-height: 1.4;">
-            Your video plays normally without interruptions.<br>
-            To slice this video into miniseries episodes, choose a cut above or click <b>⚡ Episodify</b>.
+          <div class="empty-standby-icon">⏸️</div>
+          <div class="empty-standby-text">
+            Video is playing normally without cuts.<br>
+            Choose a cut above or click <b>⚡ Episodify</b>.
           </div>
         </div>
       </div>
     </section>
 
+    <!-- Minimal Clean Footer -->
     <footer class="footer">
-      <div class="footer-actions">
-        <button id="open-ai-modal-btn" class="footer-btn footer-btn-ai">
-          🤖 Episodify with Gemini AI
+      <div class="footer-links">
+        <button type="button" id="open-ai-modal-btn" class="footer-link-btn">
+          ✨ AI Slicer
         </button>
-        <button id="open-curate-btn" class="footer-btn">
-          📤 Publish Cut to Registry
+        <span class="footer-dot">&bull;</span>
+        <button type="button" id="open-curate-btn" class="footer-link-btn">
+          📤 Publish Cut
         </button>
       </div>
-      <div class="footer-sub">Zero-DRM Community Protocol &bull; AGPL-3.0</div>
     </footer>
   </div>
 
@@ -110,13 +107,13 @@
     <div class="modal-card">
       <div class="modal-header">
         <div class="ai-badge-title">
-          <span class="ai-chip">Gemini 3.8 Flash</span>
+          <span class="ai-chip">Gemini AI</span>
           <h3 class="modal-title">AI Miniseries Generator</h3>
         </div>
         <button id="close-ai-modal-btn" class="modal-close">&times;</button>
       </div>
       <p class="modal-desc">
-        Slice any video into an episodic miniseries using AI narrative beat detection, cliffhanger ratings, and scene continuity.
+        Slice any movie into an episodic miniseries using AI narrative beat detection and scene continuity.
       </p>
 
       <div class="ai-film-banner" id="ai-film-banner">
