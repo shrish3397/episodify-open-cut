@@ -231,70 +231,6 @@
       background: #ff2a36;
       transform: translateY(-1px);
     }
-
-    /* Stealth Synchronized Floating HUD */
-    .eoc-hud-pill {
-      position: fixed;
-      bottom: 76px;
-      left: 50%;
-      transform: translateX(-50%) translateY(0);
-      background: rgba(14, 16, 24, 0.88);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 30px;
-      padding: 7px 18px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 500;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-      pointer-events: auto;
-      z-index: 500;
-      opacity: 1;
-      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .eoc-hud-pill.hidden {
-      opacity: 0;
-      transform: translateX(-50%) translateY(14px);
-      pointer-events: none;
-    }
-
-    .eoc-hud-title {
-      font-weight: 700;
-      color: #ff4d58;
-    }
-
-    .eoc-hud-time {
-      color: #9ca3af;
-    }
-
-    .eoc-hud-nudge {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      margin-left: 4px;
-    }
-
-    .eoc-nudge-btn {
-      background: rgba(255, 255, 255, 0.12);
-      color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      padding: 2px 7px;
-      font-size: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .eoc-nudge-btn:hover {
-      background: #e50914;
-      border-color: #e50914;
-    }
   `;
 
   // Native multi-layer pause (Hotstar / Netflix / Prime / standard HTML5)
@@ -441,17 +377,8 @@
       shadowRoot.appendChild(backdrop);
       cardElement = backdrop;
 
-      // Create Floating HUD Pill
-      const hud = document.createElement("div");
-      hud.className = "eoc-hud-pill hidden";
-      hud.id = "eoc-hud";
-      shadowRoot.appendChild(hud);
-      hudElement = hud;
-
+      // Floating HUD removed as requested (distraction-free video playback)
       parentContainer.appendChild(hostElement);
-
-      // Listen for user activity to auto-hide HUD
-      setupHudAutohideListeners();
     }
     return shadowRoot;
   }
@@ -547,90 +474,8 @@
     }
   }
 
-  // Update Synchronized HUD
-  function updateHud(currentSec) {
-    if (!activeRecipe || !activeRecipe.episodes || isBreakActive) {
-      if (hudElement) hudElement.classList.add("hidden");
-      return;
-    }
-
-    const currentEp = activeRecipe.episodes.find((ep) => {
-      const s = timestampToSeconds(ep.start_time);
-      const e = timestampToSeconds(ep.end_time);
-      return currentSec >= s && currentSec < e;
-    });
-
-    if (!currentEp) {
-      if (hudElement) hudElement.classList.add("hidden");
-      return;
-    }
-
-    ensureShadowHost();
-    const endSec = timestampToSeconds(currentEp.end_time);
-    const remaining = Math.max(0, endSec - currentSec);
-    const remMins = Math.floor(remaining / 60);
-    const remSecs = remaining % 60;
-    const rawEpTitle = currentEp.title || "";
-    const displayTitle = rawEpTitle.toLowerCase().startsWith("part ")
-      ? rawEpTitle
-      : `Part ${currentEp.episode_number}: ${rawEpTitle}`;
-
-    hudElement.innerHTML = `
-      <span class="eoc-hud-title">${displayTitle}</span>
-      <span class="eoc-hud-time">⏱️ ${remMins}m ${remSecs}s remaining</span>
-    `;
-
-    hudElement.classList.remove("hidden");
-    resetHudAutohideTimer();
-  }
-
-  function nudgeCurrentCut(deltaSec, currentSec) {
-    if (!activeRecipe || !activeRecipe.episodes) return;
-    const epIdx = activeRecipe.episodes.findIndex((ep) => {
-      const s = timestampToSeconds(ep.start_time);
-      const e = timestampToSeconds(ep.end_time);
-      return currentSec >= s && currentSec < e;
-    });
-    if (epIdx < 0 || epIdx >= activeRecipe.episodes.length - 1) return;
-
-    const curEp = activeRecipe.episodes[epIdx];
-    const nxtEp = activeRecipe.episodes[epIdx + 1];
-    const oldCut = timestampToSeconds(curEp.end_time);
-    const minAllow = timestampToSeconds(curEp.start_time) + 60;
-    const maxAllow = timestampToSeconds(nxtEp.end_time) - 60;
-    const newCut = Math.max(minAllow, Math.min(maxAllow, oldCut + deltaSec));
-    const newTs = secondsToTimestamp(newCut);
-
-    curEp.end_time = newTs;
-    nxtEp.start_time = newTs;
-
-    if (typeof chrome !== "undefined" && chrome.storage?.local) {
-      chrome.storage.local.set({ active_recipe: activeRecipe });
-    }
-    triggeredEpisodeBreaks.clear();
-    console.log("[EOC-Shadow] Nudged cut point to:", newTs);
-    updateHud(currentSec);
-  }
-
-  function setupHudAutohideListeners() {
-    const onUserActivity = () => {
-      if (hudElement && activeRecipe && !isBreakActive) {
-        hudElement.classList.remove("hidden");
-        resetHudAutohideTimer();
-      }
-    };
-    window.addEventListener("mousemove", onUserActivity, { passive: true });
-    window.addEventListener("keydown", onUserActivity, { passive: true });
-  }
-
-  function resetHudAutohideTimer() {
-    if (hudHideTimer) clearTimeout(hudHideTimer);
-    hudHideTimer = setTimeout(() => {
-      if (activeVideo && !activeVideo.paused && !isBreakActive && hudElement) {
-        hudElement.classList.add("hidden");
-      }
-    }, 3500);
-  }
+  // In-player floating HUD disabled as requested for distraction-free movie playback
+  function updateHud() {}
 
   // Check if dialogue or subtitles are currently active on screen across OTT players
   function isSpeechOrSubtitleActive() {
