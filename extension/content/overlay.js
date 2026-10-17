@@ -86,21 +86,30 @@
       pointer-events: auto;
     }
 
-    /* Classy Floating Break Card */
+    /* Suppress bottom floating HUD pill completely while break card is visible */
+    .eoc-backdrop.visible ~ .eoc-hud-pill,
+    .eoc-backdrop.visible + .eoc-hud-pill {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* Classy TV / Menu Option Tab Card */
     .eoc-break-card {
       position: relative;
-      max-width: 680px;
-      width: 100%;
-      background: linear-gradient(135deg, rgba(22, 25, 35, 0.94), rgba(14, 16, 24, 0.96));
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 18px;
-      padding: 32px 36px;
+      max-width: 860px;
+      width: 90%;
+      background: linear-gradient(145deg, rgba(22, 26, 38, 0.96), rgba(12, 14, 22, 0.98));
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 20px;
+      padding: 36px 42px;
       color: #f3f4f6;
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(229, 9, 20, 0.15);
-      transform: translateY(24px) scale(0.97);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 30px 80px rgba(0, 0, 0, 0.85), 0 0 45px rgba(229, 9, 20, 0.18);
+      transform: translateY(20px) scale(0.98);
       opacity: 0;
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       pointer-events: auto;
+      box-sizing: border-box;
     }
 
     .eoc-backdrop.visible .eoc-break-card {
@@ -112,7 +121,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       gap: 12px;
     }
 
@@ -120,12 +129,18 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 12px;
+      padding: 5px 14px;
       border-radius: 20px;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+    }
+
+    .eoc-badge-completed {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
     }
 
     .eoc-badge-act {
@@ -134,102 +149,139 @@
       border: 1px solid rgba(229, 9, 20, 0.4);
     }
 
-    .eoc-badge-cliffhanger {
-      background: rgba(245, 197, 24, 0.16);
-      color: #f5c518;
-      border: 1px solid rgba(245, 197, 24, 0.35);
+    .eoc-subhead {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #ff4d58;
+      margin-bottom: 6px;
     }
 
     .eoc-card-title {
-      font-size: 26px;
+      font-size: 30px;
       font-weight: 800;
       letter-spacing: -0.02em;
       color: #ffffff;
-      line-height: 1.25;
-      margin-bottom: 6px;
+      line-height: 1.22;
+      margin-bottom: 8px;
     }
 
     .eoc-card-meta {
       font-size: 13px;
       color: #9ca3af;
-      margin-bottom: 22px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .eoc-meta-dot {
+      color: rgba(255, 255, 255, 0.3);
     }
 
     .eoc-panels {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 26px;
+      gap: 18px;
+      margin-bottom: 28px;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 640px) {
       .eoc-panels {
         grid-template-columns: 1fr;
       }
     }
 
     .eoc-panel {
-      background: rgba(10, 12, 18, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      padding: 14px 16px;
+      background: rgba(12, 15, 24, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 18px 20px;
+      min-height: 120px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .eoc-panel-next {
+      background: linear-gradient(135deg, rgba(229, 9, 20, 0.1), rgba(16, 20, 30, 0.85));
+      border: 1px solid rgba(229, 9, 20, 0.35);
+      box-shadow: 0 4px 20px rgba(229, 9, 20, 0.12);
     }
 
     .eoc-panel-label {
-      font-size: 10px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: #9ca3af;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       font-weight: 700;
     }
 
+    .eoc-panel-label-next {
+      color: #ff6b75;
+    }
+
     .eoc-panel-text {
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: 14px;
+      line-height: 1.6;
       color: #e5e7eb;
+      margin: 0;
+      flex-grow: 1;
     }
 
     .eoc-actions {
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 12px;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .eoc-btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 11px 22px;
-      border-radius: 10px;
+      justify-content: center;
+      gap: 10px;
+      padding: 13px 26px;
+      border-radius: 12px;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       border: none;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: inherit;
     }
 
     .eoc-btn-secondary {
       background: rgba(255, 255, 255, 0.08);
       color: #f3f4f6;
-      border: 1px solid rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.18);
     }
 
     .eoc-btn-secondary:hover {
       background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
     }
 
     .eoc-btn-primary {
-      background: #e50914;
+      background: linear-gradient(135deg, #e50914, #c90812);
       color: #ffffff;
-      box-shadow: 0 4px 16px rgba(229, 9, 20, 0.4);
+      box-shadow: 0 4px 18px rgba(229, 9, 20, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .eoc-btn-primary:hover {
-      background: #ff2a36;
+      background: linear-gradient(135deg, #f40612, #e50914);
+      box-shadow: 0 6px 24px rgba(229, 9, 20, 0.65);
       transform: translateY(-1px);
+    }
+
+    .eoc-btn:active {
+      transform: scale(0.98);
     }
 
     /* Clean Auto-Vanishing Floating HUD Pill */
@@ -290,62 +342,50 @@
     if (v) {
       try {
         v.pause();
-        if (typeof targetSec === "number" && !isNetflix) {
+        if (typeof targetSec === "number" && !isNetflix && Math.abs(v.currentTime - targetSec) > 1.5) {
           v.currentTime = targetSec;
         }
       } catch (e) {}
     }
 
-    // 3. For non-Netflix OTTs, dispatch Spacebar and 'k' keyboard events
-    if (!isNetflix) {
+    // 3. For non-Netflix OTTs, click native pause button if video did not pause
+    if (!isNetflix && v && !v.paused) {
       try {
-        const keyEvents = [
-          { key: " ", code: "Space", keyCode: 32, which: 32 },
-          { key: "k", code: "KeyK", keyCode: 75, which: 75 },
+        const selectors = [
+          'button[aria-label*="Pause" i]',
+          'button[title*="Pause" i]',
+          '[data-testid*="pause" i]',
+          'button.play-pause-btn'
         ];
-        const targets = [v, v?.parentElement, document.activeElement].filter(Boolean);
-        keyEvents.forEach(({ key, code, keyCode, which }) => {
-          targets.forEach((target) => {
-            try {
-              target.dispatchEvent(new KeyboardEvent("keydown", { key, code, keyCode, which, bubbles: true, cancelable: true }));
-              target.dispatchEvent(new KeyboardEvent("keyup", { key, code, keyCode, which, bubbles: true, cancelable: true }));
-            } catch (e) {}
-          });
-        });
+        for (const sel of selectors) {
+          const btn = document.querySelector(sel);
+          if (btn) {
+            btn.click();
+            break;
+          }
+        }
       } catch (e) {}
     }
 
-    // 4. Click native OTT pause button if visible
-    try {
-      const selectors = [
-        'button[aria-label*="Pause" i]',
-        'button[title*="Pause" i]',
-        '[data-testid*="pause" i]',
-        'button.play-pause-btn'
-      ];
-      for (const sel of selectors) {
-        const btn = document.querySelector(sel);
-        if (btn) {
-          btn.click();
-          break;
-        }
-      }
-    } catch (e) {}
-
-    // 5. Active enforcement loop during modal display to resist auto-resume
+    // 4. Active enforcement loop during modal display to resist auto-resume
     if (pauseEnforcementInterval) clearInterval(pauseEnforcementInterval);
     let ticks = 0;
     pauseEnforcementInterval = setInterval(() => {
       ticks++;
+      if (!isBreakActive) {
+        clearInterval(pauseEnforcementInterval);
+        pauseEnforcementInterval = null;
+        return;
+      }
       const currentV = activeVideo || document.querySelector("video");
       if (currentV && !currentV.paused) {
         try { currentV.pause(); } catch (e) {}
       }
-      if (ticks > 25 || !isBreakActive) {
+      if (ticks > 25) {
         clearInterval(pauseEnforcementInterval);
         pauseEnforcementInterval = null;
       }
-    }, 150);
+    }, 200);
   }
 
   function resumeVideoPlayback() {
@@ -354,22 +394,64 @@
       clearInterval(pauseEnforcementInterval);
       pauseEnforcementInterval = null;
     }
+
     if (location.hostname.includes("netflix.com")) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
     }
+
     const v = activeVideo || document.querySelector("video");
     if (v) {
-      try { v.play().catch(() => {}); } catch (e) {}
+      // 1. Try native play button if player has one rendered (Prime Video, Hotstar, YouTube)
+      try {
+        const playBtn = document.querySelector(
+          'button[aria-label*="Play" i], button[title*="Play" i], [data-testid*="play" i], button.play-pause-btn, .atvwebplayersdk-playpause-button'
+        );
+        if (playBtn && !playBtn.getAttribute("aria-label")?.toLowerCase().includes("playlist")) {
+          playBtn.click();
+        }
+      } catch (e) {}
+
+      // 2. Direct HTML5 video play
+      try {
+        const p = v.play();
+        if (p !== undefined) {
+          p.catch(() => {
+            // Autoplay policy or player state fallback: dispatch Space
+            try {
+              const targets = [v, v.parentElement, document.activeElement].filter(Boolean);
+              targets.forEach((target) => {
+                target.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", keyCode: 32, which: 32, bubbles: true, cancelable: true }));
+                target.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space", keyCode: 32, which: 32, bubbles: true, cancelable: true }));
+              });
+            } catch (e) {}
+          });
+        }
+      } catch (e) {}
+
+      // 3. Fallback verification after 150ms
+      setTimeout(() => {
+        if (v && v.paused && !isBreakActive) {
+          try { v.play().catch(() => {}); } catch (e) {}
+        }
+      }, 150);
     }
+
     showHud(7);
   }
 
-  function seekVideoPlayback(targetSec) {
-    const isNetflix = location.hostname.includes("netflix.com");
+  // Seamless seek and playback resume
+  function seekAndPlay(targetSec) {
+    isBreakActive = false;
+    if (pauseEnforcementInterval) {
+      clearInterval(pauseEnforcementInterval);
+      pauseEnforcementInterval = null;
+    }
 
+    const isNetflix = location.hostname.includes("netflix.com");
     if (isNetflix) {
       // Direct exclusively to Netflix main-world API; never mutate video.currentTime directly on Netflix!
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_SEEK", timeMs: Math.round(targetSec * 1000) }, "*");
+      window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
       showHud(7);
       return;
     }
@@ -378,19 +460,34 @@
     if (v) {
       try {
         v.currentTime = targetSec;
-        const playWhenReady = () => {
-          v.removeEventListener("seeked", playWhenReady);
-          v.removeEventListener("canplay", playWhenReady);
-          v.play().catch(() => {});
-        };
-        v.addEventListener("seeked", playWhenReady, { once: true });
-        v.addEventListener("canplay", playWhenReady, { once: true });
-        setTimeout(() => {
-          if (v.paused) v.play().catch(() => {});
-        }, 600);
       } catch (e) {}
+
+      let resumed = false;
+      const doResume = () => {
+        if (resumed) return;
+        resumed = true;
+        try {
+          v.removeEventListener("seeked", doResume);
+          v.removeEventListener("canplay", doResume);
+        } catch (e) {}
+        resumeVideoPlayback();
+      };
+
+      if (v.readyState >= 2 && !v.seeking) {
+        doResume();
+      } else {
+        v.addEventListener("seeked", doResume, { once: true });
+        v.addEventListener("canplay", doResume, { once: true });
+        // Guaranteed fast fallback: within 250ms max, trigger resume regardless
+        setTimeout(doResume, 250);
+      }
+    } else {
+      showHud(7);
     }
-    showHud(7);
+  }
+
+  function seekVideoPlayback(targetSec) {
+    seekAndPlay(targetSec);
   }
 
   // Ensure Shadow DOM Host Container is mounted
@@ -441,23 +538,44 @@
     ensureShadowHost();
     const isFinal = !nextEpisode;
 
+    const rawCurrent = episode.title || "";
+    const cleanCurrent = rawCurrent.replace(/^(?:(?:part|episode)\s*\d+[\s:\-–—]+)+/i, "").trim() || rawCurrent;
+
+    const rawNext = nextEpisode?.title || "";
+    const cleanNext = rawNext.replace(/^(?:(?:part|episode)\s*\d+[\s:\-–—]+)+/i, "").trim() || rawNext;
+
     cardElement.innerHTML = `
       <div class="eoc-break-card">
         <div class="eoc-badge-row">
-          <span class="eoc-badge eoc-badge-act">Part ${episode.episode_number} Complete</span>
+          <span class="eoc-badge eoc-badge-completed">✓ Part ${episode.episode_number} Complete</span>
+          ${!isFinal ? `<span class="eoc-badge eoc-badge-act">Part ${nextEpisode.episode_number} Ready</span>` : `<span class="eoc-badge eoc-badge-act">Series Finale</span>`}
         </div>
-        <h2 class="eoc-card-title">${episode.title}</h2>
-        <div class="eoc-card-meta">
-          ${episode.start_time} ➔ ${episode.end_time}
-        </div>
+
+        ${!isFinal ? `
+          <div class="eoc-subhead">UP NEXT</div>
+          <h2 class="eoc-card-title">Part ${nextEpisode.episode_number}: ${cleanNext}</h2>
+          <div class="eoc-card-meta">
+            <span>Starts at <strong>${nextEpisode.start_time}</strong></span>
+            <span class="eoc-meta-dot">•</span>
+            <span>Finished Part ${episode.episode_number} (${episode.start_time} ➔ ${episode.end_time})</span>
+          </div>
+        ` : `
+          <div class="eoc-subhead">MINISERIES COMPLETED</div>
+          <h2 class="eoc-card-title">Part ${episode.episode_number}: ${cleanCurrent}</h2>
+          <div class="eoc-card-meta">
+            <span>${episode.start_time} ➔ ${episode.end_time}</span>
+            <span class="eoc-meta-dot">•</span>
+            <span>All episodes completed</span>
+          </div>
+        `}
 
         <div class="eoc-panels">
           <div class="eoc-panel">
-            <div class="eoc-panel-label">Previously On (Recap)</div>
+            <div class="eoc-panel-label">📖 What Just Happened (Part ${episode.episode_number} Recap)</div>
             <p class="eoc-panel-text">${episode.recap_text}</p>
           </div>
-          <div class="eoc-panel">
-            <div class="eoc-panel-label">${isFinal ? "Series Concluded" : `Up Next: Part ${nextEpisode.episode_number}`}</div>
+          <div class="eoc-panel ${!isFinal ? 'eoc-panel-next' : ''}">
+            <div class="eoc-panel-label ${!isFinal ? 'eoc-panel-label-next' : ''}">${isFinal ? "🏆 Series Concluded" : `🎬 Coming Up in Part ${nextEpisode.episode_number}`}</div>
             <p class="eoc-panel-text">${isFinal ? "You have completed the entire miniseries cut!" : nextEpisode.teaser_next}</p>
           </div>
         </div>
@@ -468,7 +586,7 @@
           </button>
           ${!isFinal ? `
             <button class="eoc-btn eoc-btn-primary" id="eoc-next-btn">
-              ▶ Play Part ${nextEpisode.episode_number}: ${nextEpisode.title}
+              ▶ Play Part ${nextEpisode.episode_number}: ${cleanNext}
             </button>
           ` : `
             <button class="eoc-btn eoc-btn-primary" id="eoc-replay-btn">
@@ -492,25 +610,24 @@
 
     cardElement.querySelector("#eoc-next-btn")?.addEventListener("click", () => {
       triggeredEpisodeBreaks.add(episode.episode_number);
-      hideEpisodeBreakModal();
       if (nextEpisode) {
         activeRecipe?.episodes?.forEach((other) => {
           if (other.episode_number <= episode.episode_number) {
             triggeredEpisodeBreaks.add(other.episode_number);
           }
         });
+        hideEpisodeBreakModal();
         const targetSec = timestampToSeconds(nextEpisode.start_time);
-        ignoreCutUntil = targetSec + 4.0;
-        seekVideoPlayback(targetSec + 0.1);
-        resumeVideoPlayback();
+        ignoreCutUntil = targetSec + 5.0;
+        seekAndPlay(targetSec + 0.05);
       }
     });
 
     cardElement.querySelector("#eoc-replay-btn")?.addEventListener("click", () => {
       hideEpisodeBreakModal();
       triggeredEpisodeBreaks.clear();
-      seekVideoPlayback(0);
-      resumeVideoPlayback();
+      ignoreCutUntil = 5.0;
+      seekAndPlay(0);
     });
   }
 
@@ -686,6 +803,8 @@
 
         triggeredEpisodeBreaks.add(ep.episode_number);
         console.log(`[EOC-Shadow] Episode ${ep.episode_number} clean scene break reached at ${currentSec}s (Target: ${endSec}s)!`);
+        isBreakActive = true;
+        hideHud();
         haltVideoPlayback(currentSec);
         const nextEp = activeRecipe.episodes[i + 1] || null;
         showEpisodeBreakModal(ep, nextEp);
@@ -735,18 +854,21 @@
     video.addEventListener("seeking", () => {
       const cur = Math.floor(video.currentTime);
       if (activeRecipe?.episodes) {
-        triggeredEpisodeBreaks.clear();
         activeRecipe.episodes.forEach((ep) => {
-          // If playback is at or past an episode's end time, mark it as already triggered
-          if (cur >= timestampToSeconds(ep.end_time) - 1) {
+          const epEnd = timestampToSeconds(ep.end_time);
+          if (cur >= epEnd - 1) {
             triggeredEpisodeBreaks.add(ep.episode_number);
+          } else if (cur < timestampToSeconds(ep.start_time)) {
+            triggeredEpisodeBreaks.delete(ep.episode_number);
           }
         });
       }
     });
 
     video.addEventListener("play", () => {
-      showHud(7);
+      if (!isBreakActive) {
+        showHud(7);
+      }
     });
 
     video.addEventListener("pause", () => {
