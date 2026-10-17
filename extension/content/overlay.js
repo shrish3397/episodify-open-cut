@@ -231,6 +231,46 @@
       background: #ff2a36;
       transform: translateY(-1px);
     }
+
+    /* Clean Auto-Vanishing Floating HUD Pill */
+    .eoc-hud-pill {
+      position: fixed;
+      bottom: 76px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      background: rgba(14, 16, 24, 0.9);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 24px;
+      padding: 7px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+      z-index: 500;
+      opacity: 1;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .eoc-hud-pill.hidden {
+      opacity: 0;
+      transform: translateX(-50%) translateY(12px);
+      pointer-events: none;
+    }
+
+    .eoc-hud-title {
+      font-weight: 700;
+      color: #ff4d58;
+    }
+
+    .eoc-hud-time {
+      color: #9ca3af;
+    }
   `;
 
   // Native multi-layer pause (Hotstar / Netflix / Prime / standard HTML5)
@@ -321,6 +361,7 @@
     if (v) {
       try { v.play().catch(() => {}); } catch (e) {}
     }
+    showHud(7);
   }
 
   function seekVideoPlayback(targetSec) {
@@ -329,6 +370,7 @@
     if (isNetflix) {
       // Direct exclusively to Netflix main-world API; never mutate video.currentTime directly on Netflix!
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_SEEK", timeMs: Math.round(targetSec * 1000) }, "*");
+      showHud(7);
       return;
     }
 
@@ -348,6 +390,7 @@
         }, 600);
       } catch (e) {}
     }
+    showHud(7);
   }
 
   // Ensure Shadow DOM Host Container is mounted
@@ -377,8 +420,16 @@
       shadowRoot.appendChild(backdrop);
       cardElement = backdrop;
 
-      // Floating HUD removed as requested (distraction-free video playback)
+      // Create Floating HUD Pill (auto-vanishes after 6-7 seconds)
+      const hud = document.createElement("div");
+      hud.className = "eoc-hud-pill hidden";
+      hud.id = "eoc-hud";
+      shadowRoot.appendChild(hud);
+      hudElement = hud;
+
       parentContainer.appendChild(hostElement);
+
+      setupHudAutohideListeners();
     }
     return shadowRoot;
   }
@@ -386,6 +437,7 @@
   // Render episode break modal inside Shadow Root
   function showEpisodeBreakModal(episode, nextEpisode) {
     isBreakActive = true;
+    hideHud();
     ensureShadowHost();
     const isFinal = !nextEpisode;
 
@@ -474,8 +526,104 @@
     }
   }
 
-  // In-player floating HUD disabled as requested for distraction-free movie playback
-  function updateHud() {}
+  // Synchronized In-Player Floating HUD (Auto-vanishes after 7 seconds)
+  let hudHideTimer = null;
+  let lastReportedEpisodeNum = null;
+  let lastUserActivity = 0;
+
+  function showHud(durationSec = 7) {
+    ensureShadowHost();
+    if (!hudElement || !activeRecipe || isBreakActive) return;
+    updateHudContent();
+    hudElement.classList.remove("hidden");
+    if (hudHideTimer) clearTimeout(hudHideTimer);
+    hudHideTimer = setTimeout(() => {
+      if (hudElement) {
+        hudElement.classList.add("hidden");
+      }
+    }, durationSec * 1000);
+  }
+
+  function hideHud() {
+    if (hudHideTimer) {
+      clearTimeout(hudHideTimer);
+      hudHideTimer = null;
+    }
+    if (hudElement) {
+      hudElement.classList.add("hidden");
+    }
+  }
+
+  function updateHudContent() {
+    if (!hudElement || !activeRecipe || !activeRecipe.episodes || isBreakActive) {
+      return;
+    }
+    const currentSec = activeVideo ? Math.floor(activeVideo.currentTime) : 0;
+    const currentEp = activeRecipe.episodes.find((ep) => {
+      const s = timestampToSeconds(ep.start_time);
+      const e = timestampToSeconds(ep.end_time);
+      return currentSec >= s && currentSec < e;
+    });
+
+    if (!currentEp) {
+      hideHud();
+      return;
+    }
+
+    lastReportedEpisodeNum = currentEp.episode_number;
+
+    const endSec = timestampToSeconds(currentEp.end_time);
+    const remaining = Math.max(0, endSec - currentSec);
+    const remMins = Math.floor(remaining / 60);
+    const remSecs = remaining % 60;
+
+    const rawEpTitle = currentEp.title || "";
+    const displayTitle = rawEpTitle.toLowerCase().startsWith("part ")
+      ? rawEpTitle
+      : `Part ${currentEp.episode_number}: ${rawEpTitle}`;
+
+    hudElement.innerHTML = `
+      <span class="eoc-hud-title">${displayTitle}</span>
+      <span class="eoc-hud-time">⏱️ ${remMins}m ${remSecs}s remaining</span>
+    `;
+  }
+
+  // 1Hz playback ticker: only updates countdown if already visible. Does NOT unhide or reset vanish timer!
+  function updateHud(currentSec) {
+    if (!activeRecipe || !activeRecipe.episodes) return;
+
+    // Detect if episode changed during continuous natural playback -> show HUD for 7 seconds
+    const currentEp = activeRecipe.episodes.find((ep) => {
+      const s = timestampToSeconds(ep.start_time);
+      const e = timestampToSeconds(ep.end_time);
+      return currentSec >= s && currentSec < e;
+    });
+    if (currentEp && lastReportedEpisodeNum !== null && lastReportedEpisodeNum !== currentEp.episode_number) {
+      lastReportedEpisodeNum = currentEp.episode_number;
+      showHud(7);
+      return;
+    }
+
+    if (!hudElement || hudElement.classList.contains("hidden")) {
+      return;
+    }
+
+    updateHudContent();
+  }
+
+  function setupHudAutohideListeners() {
+    const onUserActivity = () => {
+      const now = Date.now();
+      if (now - lastUserActivity < 1000) return;
+      lastUserActivity = now;
+
+      if (activeVideo && !activeVideo.paused && !isBreakActive && activeRecipe) {
+        showHud(7);
+      }
+    };
+    window.addEventListener("mousemove", onUserActivity, { passive: true });
+    window.addEventListener("keydown", onUserActivity, { passive: true });
+  }
 
   // Check if dialogue or subtitles are currently active on screen across OTT players
   function isSpeechOrSubtitleActive() {
@@ -599,12 +747,12 @@
     });
 
     video.addEventListener("play", () => {
-      resetHudAutohideTimer();
+      showHud(7);
     });
 
     video.addEventListener("pause", () => {
-      if (hudElement && !isBreakActive) {
-        hudElement.classList.remove("hidden");
+      if (!isBreakActive) {
+        showHud(7);
       }
     });
   }
@@ -677,7 +825,7 @@
     });
     console.log("[EOC-Shadow] Loaded recipe:", recipe.meta?.title);
     if (activeVideo) {
-      updateHud(cur);
+      showHud(7);
     }
   }
 
