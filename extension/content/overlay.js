@@ -369,21 +369,18 @@
 
     // 4. Active enforcement loop during modal display to resist auto-resume
     if (pauseEnforcementInterval) clearInterval(pauseEnforcementInterval);
-    let ticks = 0;
     pauseEnforcementInterval = setInterval(() => {
-      ticks++;
       if (!isBreakActive) {
         clearInterval(pauseEnforcementInterval);
         pauseEnforcementInterval = null;
         return;
       }
+      if (isNetflix) {
+        window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
+      }
       const currentV = activeVideo || document.querySelector("video");
       if (currentV && !currentV.paused) {
         try { currentV.pause(); } catch (e) {}
-      }
-      if (ticks > 25) {
-        clearInterval(pauseEnforcementInterval);
-        pauseEnforcementInterval = null;
       }
     }, 200);
   }
@@ -526,6 +523,7 @@
     isBreakActive = true;
     hideHud();
     ensureShadowHost();
+    haltVideoPlayback(episode?.end_time ? timestampToSeconds(episode.end_time) : undefined);
     const isFinal = !nextEpisode;
 
     const rawCurrent = episode.title || "";
@@ -571,16 +569,19 @@
         </div>
 
         <div class="eoc-actions">
-          <button class="eoc-btn eoc-btn-secondary" id="eoc-continue-btn">
+          <button class="eoc-btn eoc-btn-secondary" id="eoc-continue-btn" title="Continue watching the film from this point">
             Continue Watching Film
           </button>
           ${!isFinal ? `
-            <button class="eoc-btn eoc-btn-primary" id="eoc-next-btn">
-              ▶ Play Part ${nextEpisode.episode_number}: ${cleanNext}
+            <button class="eoc-btn eoc-btn-secondary" id="eoc-replay-ep1-btn" title="Restart series from Episode 1">
+              ↺ Play Episode 1 Again
+            </button>
+            <button class="eoc-btn eoc-btn-primary" id="eoc-next-btn" title="Advance to Episode ${nextEpisode.episode_number}">
+              ▶ Play Episode ${nextEpisode.episode_number}: ${cleanNext}
             </button>
           ` : `
-            <button class="eoc-btn eoc-btn-primary" id="eoc-replay-btn">
-              ↺ Replay Series
+            <button class="eoc-btn eoc-btn-primary" id="eoc-replay-ep1-btn" title="Replay entire miniseries from Episode 1">
+              ↺ Play Episode 1 Again
             </button>
           `}
         </div>
@@ -598,6 +599,19 @@
       resumeVideoPlayback();
     });
 
+    const handleReplayEp1 = () => {
+      hideEpisodeBreakModal();
+      triggeredEpisodeBreaks.clear();
+      ignoreCutUntil = 5.0;
+      const ep1Start = activeRecipe?.episodes?.[0]?.start_time
+        ? timestampToSeconds(activeRecipe.episodes[0].start_time)
+        : 0;
+      seekAndPlay(ep1Start);
+    };
+
+    cardElement.querySelector("#eoc-replay-ep1-btn")?.addEventListener("click", handleReplayEp1);
+    cardElement.querySelector("#eoc-replay-btn")?.addEventListener("click", handleReplayEp1);
+
     cardElement.querySelector("#eoc-next-btn")?.addEventListener("click", () => {
       triggeredEpisodeBreaks.add(episode.episode_number);
       if (nextEpisode) {
@@ -611,13 +625,6 @@
         ignoreCutUntil = targetSec + 5.0;
         seekAndPlay(targetSec + 0.05);
       }
-    });
-
-    cardElement.querySelector("#eoc-replay-btn")?.addEventListener("click", () => {
-      hideEpisodeBreakModal();
-      triggeredEpisodeBreaks.clear();
-      ignoreCutUntil = 5.0;
-      seekAndPlay(0);
     });
   }
 
@@ -779,20 +786,19 @@
       const startSec = timestampToSeconds(ep.start_time);
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger if current natural playback reaches within 1s before cut up to 20s after cut.
+      // Trigger if current natural playback reaches within 0.75s before cut up to 6s after cut.
       // Crucial: Must be within this episode's span, never triggering an earlier episode.
-      const isAtCut = currentSec >= (endSec - 1) && currentSec <= (endSec + 20) && currentSec >= startSec;
+      const isAtCut = currentSec >= (endSec - 0.75) && currentSec <= (endSec + 6.0) && currentSec >= startSec;
 
       if (isAtCut && !triggeredEpisodeBreaks.has(ep.episode_number)) {
-        // Active Dialogue Guard: NEVER cut mid-sentence while speech or subtitles are on screen!
-        // Wait until dialogue completes and a clean silence gap between scenes occurs.
-        if (isSpeechOrSubtitleActive() && currentSec < (endSec + 20)) {
+        // Active Dialogue Guard: Wait up to 2.5s past the cut if dialogue/subtitle is on screen
+        if (isSpeechOrSubtitleActive() && currentSec < (endSec + 2.5)) {
           console.log(`[EOC-Shadow] Episode ${ep.episode_number} target reached at ${currentSec}s, but dialogue/subtitle is active on screen. Waiting for clean scene silence...`);
           return;
         }
 
         triggeredEpisodeBreaks.add(ep.episode_number);
-        console.log(`[EOC-Shadow] Episode ${ep.episode_number} clean scene break reached at ${currentSec}s (Target: ${endSec}s)!`);
+        console.log(`[EOC-Shadow] Episode ${ep.episode_number} clean scene break reached at ${currentSec}s (Target: ${endSec}s)! Pausing film.`);
         isBreakActive = true;
         hideHud();
         haltVideoPlayback(currentSec);
