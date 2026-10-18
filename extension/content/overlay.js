@@ -336,22 +336,22 @@
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
     }
 
-    const v = activeVideo || document.querySelector("video");
+    const v = activeVideo || findBestVideoElement() || document.querySelector("video");
 
-    // 2. Direct HTML5 pause & position lock (Never set currentTime on Netflix directly as it triggers DRM M7375)
+    // 2. Direct HTML5 pause
     if (v) {
       try {
         v.pause();
-        if (typeof targetSec === "number" && !isNetflix && Math.abs(v.currentTime - targetSec) > 1.5) {
-          v.currentTime = targetSec;
-        }
       } catch (e) {}
     }
 
-    // 3. For non-Netflix OTTs, click native pause button if video did not pause
-    if (!isNetflix && v && !v.paused) {
+    // 3. Native OTT pause buttons across Prime Video, Hotstar, YouTube, etc.
+    if (!isNetflix) {
       try {
         const selectors = [
+          '.atvwebplayersdk-playpause-button[aria-label*="Pause" i]',
+          '.atvwebplayersdk-playpause-button',
+          'button[data-title*="Pause" i]',
           'button[aria-label*="Pause" i]',
           'button[title*="Pause" i]',
           '[data-testid*="pause" i]',
@@ -365,6 +365,22 @@
           }
         }
       } catch (e) {}
+
+      // Dispatch Spacebar keydown to ensure player pauses
+      const currentVid = v || findBestVideoElement();
+      if (currentVid && !currentVid.paused) {
+        try {
+          const spaceEvt = new KeyboardEvent("keydown", {
+            key: " ",
+            code: "Space",
+            keyCode: 32,
+            which: 32,
+            bubbles: true,
+            cancelable: true
+          });
+          (currentVid || document.body).dispatchEvent(spaceEvt);
+        } catch (e) {}
+      }
     }
 
     // 4. Active enforcement loop during modal display to resist auto-resume
@@ -378,11 +394,11 @@
       if (isNetflix) {
         window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
       }
-      const currentV = activeVideo || document.querySelector("video");
+      const currentV = activeVideo || findBestVideoElement() || document.querySelector("video");
       if (currentV && !currentV.paused) {
         try { currentV.pause(); } catch (e) {}
       }
-    }, 200);
+    }, 150);
   }
 
   function resumeVideoPlayback() {
@@ -787,7 +803,7 @@
     return false;
   }
 
-  // Principle 3: Glitch-free 1Hz-throttled evaluation with Active Speech & Scene Silence Guard
+  // Principle 3: Precision evaluation with guaranteed pause at end of episode
   function evaluateCutTimestamp(currentSec) {
     updateHud(currentSec);
 
@@ -798,19 +814,13 @@
       const startSec = timestampToSeconds(ep.start_time);
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger if current natural playback reaches within 0.75s before cut up to 6s after cut.
+      // Trigger if current natural playback reaches within 1s before cut up to 8s after cut.
       // Crucial: Must be within this episode's span, never triggering an earlier episode.
-      const isAtCut = currentSec >= (endSec - 0.75) && currentSec <= (endSec + 6.0) && currentSec >= startSec;
+      const isAtCut = currentSec >= (endSec - 1) && currentSec <= (endSec + 8.0) && currentSec >= startSec;
 
       if (isAtCut && !triggeredEpisodeBreaks.has(ep.episode_number)) {
-        // Active Dialogue Guard: Wait up to 2.5s past the cut if dialogue/subtitle is on screen
-        if (isSpeechOrSubtitleActive() && currentSec < (endSec + 2.5)) {
-          console.log(`[EOC-Shadow] Episode ${ep.episode_number} target reached at ${currentSec}s, but dialogue/subtitle is active on screen. Waiting for clean scene silence...`);
-          return;
-        }
-
         triggeredEpisodeBreaks.add(ep.episode_number);
-        console.log(`[EOC-Shadow] Episode ${ep.episode_number} clean scene break reached at ${currentSec}s (Target: ${endSec}s)! Pausing film.`);
+        console.log(`[EOC-Shadow] Episode ${ep.episode_number} end reached at ${currentSec}s (Target: ${endSec}s)! Pausing film.`);
         isBreakActive = true;
         hideHud();
         haltVideoPlayback(currentSec);
@@ -852,6 +862,20 @@
     return activeVideo || videos[0];
   }
 
+  // Precision 250ms loop to guarantee no episode cut is ever missed even if timeupdate is throttled
+  let cutCheckInterval = null;
+  function startCutCheckInterval() {
+    if (cutCheckInterval) clearInterval(cutCheckInterval);
+    cutCheckInterval = setInterval(() => {
+      const v = activeVideo || findBestVideoElement();
+      if (!v || v.paused || isBreakActive || !activeRecipe) return;
+      const currentSec = Math.floor(v.currentTime);
+      if (currentSec === lastCheckedSec) return;
+      lastCheckedSec = currentSec;
+      evaluateCutTimestamp(currentSec);
+    }, 250);
+  }
+
   function attachVideoElement(video) {
     if (!video || activeVideo === video) return;
     activeVideo = video;
@@ -870,9 +894,9 @@
       if (activeRecipe?.episodes) {
         activeRecipe.episodes.forEach((ep) => {
           const epEnd = timestampToSeconds(ep.end_time);
-          if (cur >= epEnd - 1) {
+          if (cur >= epEnd + 5) {
             triggeredEpisodeBreaks.add(ep.episode_number);
-          } else if (cur < timestampToSeconds(ep.start_time)) {
+          } else if (cur < epEnd) {
             triggeredEpisodeBreaks.delete(ep.episode_number);
           }
         });
@@ -925,6 +949,12 @@
     document.addEventListener("fullscreenchange", () => {
       ensureShadowHost();
     });
+    document.addEventListener("webkitfullscreenchange", () => {
+      ensureShadowHost();
+    });
+
+    // Start 250ms high-precision cut checking loop
+    startCutCheckInterval();
   }
 
   // Clear active recipe and revert to Standby mode
@@ -954,7 +984,7 @@
     triggeredEpisodeBreaks.clear();
     const cur = activeVideo ? Math.floor(activeVideo.currentTime) : 0;
     activeRecipe.episodes.forEach((ep) => {
-      if (cur >= timestampToSeconds(ep.end_time) - 1) {
+      if (cur >= timestampToSeconds(ep.end_time) + 5) {
         triggeredEpisodeBreaks.add(ep.episode_number);
       }
     });
