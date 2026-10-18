@@ -97,12 +97,12 @@
     /* Classy TV / Menu Option Tab Card */
     .eoc-break-card {
       position: relative;
-      max-width: 860px;
+      max-width: 920px;
       width: 90%;
       background: linear-gradient(145deg, rgba(22, 26, 38, 0.96), rgba(12, 14, 22, 0.98));
       border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 20px;
-      padding: 36px 42px;
+      padding: 32px 36px;
       color: #f3f4f6;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 30px 80px rgba(0, 0, 0, 0.85), 0 0 45px rgba(229, 9, 20, 0.18);
       transform: translateY(20px) scale(0.98);
@@ -233,26 +233,46 @@
     }
 
     .eoc-actions {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.35fr;
+      gap: 12px;
       align-items: center;
-      justify-content: flex-end;
-      gap: 14px;
-      flex-wrap: wrap;
+      margin-top: 22px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .eoc-actions.eoc-actions-two {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 820px) {
+      .eoc-actions {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
     }
 
     .eoc-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 13px 26px;
+      gap: 8px;
+      padding: 13px 18px;
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       cursor: pointer;
       border: none;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: inherit;
+      width: 100%;
+      box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      line-height: 1.2;
     }
 
     .eoc-btn-secondary {
@@ -401,6 +421,82 @@
     }, 150);
   }
 
+  // Auto-recovery for Prime Video errors ("Video Unavailable" GU85HKX66NVFNQ9Y)
+  function dismissPrimeVideoErrorDialogIfPresent() {
+    if (!location.hostname.includes("primevideo.com") && !location.hostname.includes("amazon.")) return;
+
+    const dialogs = document.querySelectorAll(
+      '.dv-dp-node-dialog, [role="dialog"], [class*="dialog"], [class*="modal"], .webPlayerUIContainer div'
+    );
+    for (const d of dialogs) {
+      const text = (d.textContent || "").toLowerCase();
+      if (text.includes("gu85hkx66nvfnq9y") || text.includes("video unavailable") || (text.includes("experiencing a problem") && text.includes("playing this video"))) {
+        console.warn("[EOC-Shadow] Detected Prime Video error dialog. Auto-recovering...");
+        const okBtn = d.querySelector('button, [role="button"], [data-automation-id="dialog-confirm"]');
+        if (okBtn) {
+          try {
+            okBtn.click();
+            setTimeout(() => {
+              resumeVideoPlayback();
+            }, 800);
+          } catch (e) {}
+          break;
+        }
+      }
+    }
+  }
+
+  // Prime Video timeline scrubber interaction
+  function seekViaPrimeVideoScrubber(targetSec, duration) {
+    if (!duration || duration <= 0) return false;
+
+    // Wake up player controls by dispatching mousemove
+    const playerContainer = document.querySelector('.webPlayerUIContainer, .rendererContainer, [class*="webPlayer"], body');
+    if (playerContainer) {
+      try {
+        playerContainer.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 200, clientY: 200 }));
+      } catch (e) {}
+    }
+
+    const sliderSelectors = [
+      '.atvwebplayersdk-timelineslider-container',
+      '[class*="timelineslider"]',
+      '.atvwebplayersdk-slider-container',
+      '[data-testid*="timeline-slider"]',
+      'div[role="slider"]'
+    ];
+
+    for (const sel of sliderSelectors) {
+      const slider = document.querySelector(sel);
+      if (slider) {
+        const rect = slider.getBoundingClientRect();
+        if (rect.width > 50) {
+          const ratio = Math.max(0.001, Math.min(0.999, targetSec / duration));
+          const clientX = rect.left + (rect.width * ratio);
+          const clientY = rect.top + (rect.height / 2);
+          const opts = {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: clientX,
+            clientY: clientY,
+            pageX: clientX + (window.scrollX || 0),
+            pageY: clientY + (window.scrollY || 0),
+            button: 0,
+            buttons: 1
+          };
+          slider.dispatchEvent(new PointerEvent("pointerdown", opts));
+          slider.dispatchEvent(new MouseEvent("mousedown", opts));
+          slider.dispatchEvent(new PointerEvent("pointerup", opts));
+          slider.dispatchEvent(new MouseEvent("mouseup", opts));
+          slider.dispatchEvent(new MouseEvent("click", opts));
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   function resumeVideoPlayback() {
     isBreakActive = false;
     if (pauseEnforcementInterval) {
@@ -410,47 +506,84 @@
 
     if (location.hostname.includes("netflix.com")) {
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PLAY" }, "*");
+      showHud(7);
+      return;
     }
 
-    const v = activeVideo || document.querySelector("video");
+    const isPrimeVideo = location.hostname.includes("primevideo.com") || location.hostname.includes("amazon.");
+    const v = activeVideo || findBestVideoElement() || document.querySelector("video");
+
     if (v) {
-      // 1. Only click a native play button if it EXPLICITLY is a Play button and NOT a Pause/toggle button
+      // If already playing smoothly, don't re-trigger
+      if (!v.paused) {
+        showHud(7);
+        return;
+      }
+
+      let nativeButtonClicked = false;
+
+      // 1. Native platform play buttons (Prime Video, Hotstar, YouTube, etc.)
       try {
-        const playBtn = document.querySelector(
-          'button[aria-label*="Play" i]:not([aria-label*="Pause" i]):not([aria-label*="Playlist" i]), button[title*="Play" i]:not([title*="Pause" i]), [data-testid*="play" i]:not([data-testid*="pause" i])'
-        );
-        if (playBtn) {
-          playBtn.click();
+        const primePlayBtn = isPrimeVideo ? document.querySelector(
+          '.atvwebplayersdk-playpause-button[aria-label*="Play" i], .atvwebplayersdk-playpause-button'
+        ) : null;
+
+        if (primePlayBtn) {
+          const label = (primePlayBtn.getAttribute("aria-label") || primePlayBtn.getAttribute("title") || "").toLowerCase();
+          if (!label.includes("pause")) {
+            primePlayBtn.click();
+            nativeButtonClicked = true;
+          }
+        } else {
+          const generalPlayBtn = document.querySelector(
+            'button[aria-label*="Play" i]:not([aria-label*="Pause" i]):not([aria-label*="Playlist" i]), button[title*="Play" i]:not([title*="Pause" i]), [data-testid*="play" i]:not([data-testid*="pause" i])'
+          );
+          if (generalPlayBtn) {
+            generalPlayBtn.click();
+            nativeButtonClicked = true;
+          }
         }
       } catch (e) {}
 
-      // 2. Direct HTML5 video play (if paused)
-      if (v.paused) {
-        try {
-          v.play().catch((err) => {
-            console.log("[EOC-Shadow] Video play waiting for buffer:", err);
-          });
-        } catch (e) {}
+      // 2. Direct HTML5 video play:
+      // If native button was clicked, give it 250ms to start cleanly.
+      // If no native button was clicked or video remains paused, call v.play().
+      const attemptDirectPlay = () => {
+        if (v && v.paused && !isBreakActive) {
+          try {
+            v.play().catch((err) => {
+              console.log("[EOC-Shadow] Video play waiting for buffer:", err);
+            });
+          } catch (e) {}
+        }
+      };
+
+      if (!nativeButtonClicked) {
+        attemptDirectPlay();
+      } else {
+        setTimeout(attemptDirectPlay, 250);
       }
 
-      // 3. Fallback verification after 200ms
+      // 3. Fallback verification after 500ms
       setTimeout(() => {
         if (v && v.paused && !isBreakActive) {
-          try { v.play().catch(() => {}); } catch (e) {}
+          attemptDirectPlay();
         }
-      }, 200);
+      }, 500);
     }
 
     showHud(7);
   }
 
-  // Seamless seek and playback resume
+  // Seamless seek and playback resume with adaptive DRM buffering protection
   function seekAndPlay(targetSec) {
     isBreakActive = false;
     if (pauseEnforcementInterval) {
       clearInterval(pauseEnforcementInterval);
       pauseEnforcementInterval = null;
     }
+
+    dismissPrimeVideoErrorDialogIfPresent();
 
     const isNetflix = location.hostname.includes("netflix.com");
     if (isNetflix) {
@@ -461,41 +594,117 @@
       return;
     }
 
+    const isPrimeVideo = location.hostname.includes("primevideo.com") || location.hostname.includes("amazon.");
     const v = activeVideo || findBestVideoElement() || document.querySelector("video");
+
     if (v) {
-      // DRM-Safe Seek: Pause briefly before mutating currentTime to prevent EME/MSE buffer collisions
+      // DRM-Safe Seek: Pause cleanly before mutating currentTime to prevent EME/MSE buffer collisions
       try {
         if (!v.paused) {
           v.pause();
         }
       } catch (e) {}
 
-      // Clamp target time to safe range
-      const safeTime = Math.max(0, Number.isFinite(v.duration) && v.duration > 0 ? Math.min(targetSec, v.duration - 0.5) : targetSec);
+      if (isPrimeVideo) {
+        try {
+          const pauseBtn = document.querySelector('.atvwebplayersdk-playpause-button[aria-label*="Pause" i]');
+          if (pauseBtn) pauseBtn.click();
+        } catch (e) {}
+      }
 
+      // Accurate duration detection
+      const totalDuration = detectMovieDurationFromPage(v) || (Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0);
+      const safeTime = Math.max(0, totalDuration > 0 ? Math.min(targetSec, totalDuration - 0.5) : targetSec);
+
+      showHud(7);
+
+      // On Prime Video, try native timeline scrubber first
+      let scrubbedViaUI = false;
+      if (isPrimeVideo && totalDuration > 0) {
+        try {
+          scrubbedViaUI = seekViaPrimeVideoScrubber(safeTime, totalDuration);
+        } catch (e) {
+          console.warn("[EOC-Shadow] Scrubber seek error:", e);
+        }
+      }
+
+      // Apply to HTML5 video element directly
       try {
         v.currentTime = safeTime;
+        v.dispatchEvent(new Event("seeking", { bubbles: true }));
       } catch (e) {
         console.warn("[EOC-Shadow] Video seek failed:", e);
       }
 
+      // Safe buffer-aware playback resumption:
+      // Wait until the player has actually received/decrypted the new chunk
       let resumed = false;
-      const doResume = () => {
+      let checkTimer = null;
+
+      const triggerResume = () => {
         if (resumed) return;
         resumed = true;
+        if (checkTimer) clearInterval(checkTimer);
         try {
-          v.removeEventListener("seeked", doResume);
-          v.removeEventListener("canplay", doResume);
+          v.removeEventListener("seeked", onPlayerBufferReady);
+          v.removeEventListener("canplay", onPlayerBufferReady);
+          v.removeEventListener("canplaythrough", onPlayerBufferReady);
+          v.removeEventListener("playing", onAlreadyPlaying);
         } catch (e) {}
-        resumeVideoPlayback();
+
+        // 200ms grace period for DRM decryption session to initialize cleanly
+        setTimeout(() => {
+          resumeVideoPlayback();
+        }, 200);
       };
 
-      // Always wait for seeked or canplay event before attempting play
-      v.addEventListener("seeked", doResume, { once: true });
-      v.addEventListener("canplay", doResume, { once: true });
+      const onAlreadyPlaying = () => {
+        if (resumed) return;
+        resumed = true;
+        if (checkTimer) clearInterval(checkTimer);
+        try {
+          v.removeEventListener("seeked", onPlayerBufferReady);
+          v.removeEventListener("canplay", onPlayerBufferReady);
+          v.removeEventListener("canplaythrough", onPlayerBufferReady);
+          v.removeEventListener("playing", onAlreadyPlaying);
+        } catch (e) {}
+        showHud(7);
+      };
 
-      // Fallback in case seeked already completed or didn't fire
-      setTimeout(doResume, 600);
+      const onPlayerBufferReady = () => {
+        if (!v.seeking && (v.readyState >= 2 || v.currentTime > 0)) {
+          triggerResume();
+        }
+      };
+
+      v.addEventListener("seeked", onPlayerBufferReady);
+      v.addEventListener("canplay", onPlayerBufferReady);
+      v.addEventListener("canplaythrough", onPlayerBufferReady);
+      v.addEventListener("playing", onAlreadyPlaying, { once: true });
+
+      // Robust readiness poll (polls up to 8s instead of an abrupt 600ms cut-in)
+      let elapsed = 0;
+      checkTimer = setInterval(() => {
+        elapsed += 250;
+        if (resumed) {
+          clearInterval(checkTimer);
+          return;
+        }
+
+        if (!v.paused) {
+          onAlreadyPlaying();
+          return;
+        }
+
+        if (!v.seeking && v.readyState >= 2) {
+          triggerResume();
+          return;
+        }
+
+        if (elapsed >= 8000) {
+          triggerResume();
+        }
+      }, 250);
     } else {
       showHud(7);
     }
@@ -596,7 +805,7 @@
           </div>
         </div>
 
-        <div class="eoc-actions">
+        <div class="eoc-actions ${isFinal ? 'eoc-actions-two' : ''}">
           <button class="eoc-btn eoc-btn-secondary" id="eoc-continue-btn" title="Continue watching the film from this point">
             Continue Watching Film
           </button>
@@ -604,7 +813,7 @@
             <button class="eoc-btn eoc-btn-secondary" id="eoc-replay-ep1-btn" title="Restart series from Episode 1">
               ↺ Play Episode 1 Again
             </button>
-            <button class="eoc-btn eoc-btn-primary" id="eoc-next-btn" title="Advance to Episode ${nextEpisode.episode_number}">
+            <button class="eoc-btn eoc-btn-primary" id="eoc-next-btn" title="Advance to Episode ${nextEpisode.episode_number}: ${cleanNext}">
               ▶ Play Episode ${nextEpisode.episode_number}: ${cleanNext}
             </button>
           ` : `
@@ -623,14 +832,14 @@
       triggeredEpisodeBreaks.add(episode.episode_number);
       hideEpisodeBreakModal();
       const cur = activeVideo?.currentTime || 0;
-      ignoreCutUntil = cur + 10;
+      ignoreCutUntil = cur + 10.0;
       resumeVideoPlayback();
     });
 
     const handleReplayEp1 = () => {
       hideEpisodeBreakModal();
       triggeredEpisodeBreaks.clear();
-      ignoreCutUntil = 5.0;
+      ignoreCutUntil = 10.0;
       const ep1Start = activeRecipe?.episodes?.[0]?.start_time
         ? timestampToSeconds(activeRecipe.episodes[0].start_time)
         : 0;
@@ -650,7 +859,7 @@
         });
         hideEpisodeBreakModal();
         const targetSec = timestampToSeconds(nextEpisode.start_time);
-        ignoreCutUntil = targetSec + 5.0;
+        ignoreCutUntil = targetSec + 10.0;
         seekAndPlay(targetSec + 0.05);
       }
     });
@@ -867,6 +1076,9 @@
   function startCutCheckInterval() {
     if (cutCheckInterval) clearInterval(cutCheckInterval);
     cutCheckInterval = setInterval(() => {
+      // Auto-recover if Prime Video shows its transient "Video Unavailable" error dialog
+      dismissPrimeVideoErrorDialogIfPresent();
+
       const v = activeVideo || findBestVideoElement();
       if (!v || v.paused || isBreakActive || !activeRecipe) return;
       const currentSec = Math.floor(v.currentTime);
@@ -893,10 +1105,11 @@
       const cur = Math.floor(video.currentTime);
       if (activeRecipe?.episodes) {
         activeRecipe.episodes.forEach((ep) => {
+          const epStart = timestampToSeconds(ep.start_time);
           const epEnd = timestampToSeconds(ep.end_time);
-          if (cur >= epEnd + 5) {
+          if (cur >= epEnd - 0.5) {
             triggeredEpisodeBreaks.add(ep.episode_number);
-          } else if (cur < epEnd) {
+          } else if (cur < epStart) {
             triggeredEpisodeBreaks.delete(ep.episode_number);
           }
         });
@@ -1037,8 +1250,8 @@
               }
             });
             hideEpisodeBreakModal();
-            ignoreCutUntil = sec + 4;
-            seekVideoPlayback(sec + 0.1);
+            ignoreCutUntil = sec + 10.0;
+            seekVideoPlayback(sec + 0.05);
             sendResponse({ status: "ok", time: sec });
           }
         }
