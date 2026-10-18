@@ -780,11 +780,49 @@ function scaleRecipeToDuration(targetDurationSec) {
 }
 
 function jumpToEpisode(epNum) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "JUMP_TO_EPISODE", episode_number: epNum });
-    }
-  });
+  const doJump = (recipe) => {
+    if (!recipe || !recipe.episodes) return;
+    const num = Number(epNum) || 1;
+    const ep = recipe.episodes.find((e) => Number(e.episode_number) === num)
+      || recipe.episodes[num - 1]
+      || recipe.episodes[0];
+    if (!ep) return;
+
+    const targetSec = timestampToSeconds(ep.start_time);
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab?.id) return;
+
+      const payload = {
+        action: "JUMP_TO_EPISODE",
+        episode_number: num,
+        start_time: ep.start_time,
+        targetSec: targetSec,
+        recipe: recipe
+      };
+
+      chrome.tabs.sendMessage(tab.id, payload, (res) => {
+        if (chrome.runtime.lastError || !res) {
+          console.warn("[EOC-Popup] Content script unreachable, injecting overlay...", chrome.runtime.lastError);
+          tryAutoInject(tab, () => {
+            chrome.tabs.sendMessage(tab.id, payload, () => {});
+          });
+        }
+      });
+    });
+  };
+
+  if (currentRecipe && currentRecipe.episodes) {
+    doJump(currentRecipe);
+  } else {
+    chrome.storage.local.get(["active_recipe"], (res) => {
+      if (res?.active_recipe) {
+        currentRecipe = res.active_recipe;
+        doJump(res.active_recipe);
+      }
+    });
+  }
 }
 
 // Auto-detect movie from page URL or title across built-in & online registry
@@ -937,9 +975,17 @@ function checkActiveTabStatus(statusEl) {
           if (matched) {
             currentRecipe = matched;
             updateUI();
-          } else {
-            currentRecipe = null;
+          } else if (currentRecipe && currentRecipe.episodes) {
             updateUI();
+          } else {
+            chrome.storage.local.get(["active_recipe"], (store) => {
+              if (store?.active_recipe && store.active_recipe.episodes) {
+                currentRecipe = store.active_recipe;
+              } else {
+                currentRecipe = null;
+              }
+              updateUI();
+            });
           }
         }
 
@@ -1150,9 +1196,13 @@ function cleanMovieTitle(title, url = "") {
   if (checkStr.includes("1271710275") || checkStr.includes("bethlehem kudumba unit") || checkStr.includes("bethlehem")) {
     return "Bethlehem Kudumba Unit";
   }
+  if (checkStr.includes("0j1ps71yn1v42wmlvt1lzmhpjn") || checkStr.includes("pride & prejudice") || checkStr.includes("pride and prejudice")) {
+    return "Pride & Prejudice";
+  }
 
-  if (!title) return "Dil Chahta Hai";
+  if (!title) return "Feature Film";
   let t = title
+    .replace(/^Watch\s+movies,\s*tv\s*shows.*?$/i, "")
     .replace(/^Watch\s+/i, "")
     .replace(/^Prime Video:\s*/i, "")
     .replace(/\s*\|\s*Prime Video.*$/i, "")
@@ -1181,9 +1231,14 @@ function cleanMovieTitle(title, url = "") {
     "video",
     "movie",
     "feature film",
+    "watch movies, tv shows, and more",
+    "movies, tv shows, and more"
   ];
-  if (!t || generic.includes(t.toLowerCase())) {
-    return "Dil Chahta Hai";
+  if (!t || generic.includes(t.toLowerCase()) || t.toLowerCase().startsWith("watch movies")) {
+    if (checkStr.includes("0j1ps71yn1v42wmlvt1lzmhpjn") || checkStr.includes("pride")) {
+      return "Pride & Prejudice";
+    }
+    return "Feature Film";
   }
   return t;
 }
