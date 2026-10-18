@@ -539,6 +539,27 @@ body {
   white-space: nowrap;
 }
 
+.ai-film-title-input {
+  flex: 1;
+  background: #161b22;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 200px;
+  text-align: right;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.ai-film-title-input:focus {
+  outline: none;
+  border-color: #a78bfa;
+  background: #1c2128;
+}
+
 .ai-captions-badge {
   background: rgba(46, 164, 79, 0.15);
   color: #3fb950;
@@ -634,6 +655,53 @@ body {
   font-size: 10px;
   color: #a78bfa;
   word-break: break-all;
+}
+
+.ai-custom-episodes-row {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: rgba(167, 139, 250, 0.08);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-custom-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d1d5db;
+}
+
+.ai-custom-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-custom-ep-input {
+  width: 54px;
+  background: #161b22;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  font-family: inherit;
+}
+
+.ai-custom-ep-input:focus {
+  outline: none;
+  border-color: #a78bfa;
+}
+
+.ai-custom-unit {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .ai-progress-box {

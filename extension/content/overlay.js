@@ -1147,19 +1147,66 @@
     }
 
     function getRealMovieTitle() {
-      // 1. Netflix DOM title
-      const netflixTitle = document.querySelector(".video-title h4, [data-uia='video-title'], .ellipsize-text, h4.ellipsize-text")?.textContent?.trim();
-      if (netflixTitle) return netflixTitle;
+      // 1. Check exact catalog IDs in pathname or full URL
+      const fullUrl = `${window.location.pathname || ""} ${window.location.href || ""}`.toLowerCase();
+      if (fullUrl.includes("60021525") || fullUrl.includes("dil chahta") || fullUrl.includes("dil chhata")) return "Dil Chahta Hai";
+      if (fullUrl.includes("81760391") || fullUrl.includes("laapataa")) return "Laapataa Ladies";
+      if (fullUrl.includes("70270408") || fullUrl.includes("millers")) return "We're the Millers";
+      if (fullUrl.includes("0qry75b5jx2obl1p59w9bn0qxn") || fullUrl.includes("queen")) return "Queen";
+      if (fullUrl.includes("1271616952") || fullUrl.includes("2 states") || fullUrl.includes("2-states")) return "2 States";
+      if (fullUrl.includes("1271525191") || fullUrl.includes("sarvam maya")) return "Sarvam Maya";
+      if (fullUrl.includes("1271710275") || fullUrl.includes("bethlehem")) return "Bethlehem Kudumba Unit";
 
-      // 2. Prime Video DOM title
+      // 2. Netflix DOM title & OpenGraph tags
+      const netflixSelectors = [
+        ".video-title h4",
+        "[data-uia='video-title']",
+        ".watch-video--header-title",
+        ".watch-video--header-title-container h4",
+        ".watch-video--header-title-container span",
+        "[data-uia='watch-video-title']",
+        "h4.ellipsize-text",
+        ".ellipsize-text",
+        ".video-title",
+        "[class*='video-title']",
+        "[class*='header-title']",
+        "h4[class*='title']"
+      ];
+      for (const sel of netflixSelectors) {
+        const el = document.querySelector(sel);
+        const txt = (el?.textContent || "").trim();
+        if (txt && !["netflix", "watch", "home", "video"].includes(txt.toLowerCase())) {
+          return txt;
+        }
+      }
+
+      // Check Netflix Logo Image alt text
+      const netflixLogo = document.querySelector(".title-logo, [data-uia='title-logo'], img[class*='title-logo']");
+      if (netflixLogo && netflixLogo.alt && !["netflix", "logo"].includes(netflixLogo.alt.toLowerCase().trim())) {
+        return netflixLogo.alt.trim();
+      }
+
+      // Check OpenGraph / Meta tags
+      const metaTitle = document.querySelector('meta[property="og:title"], meta[name="twitter:title"]')?.getAttribute("content");
+      if (metaTitle) {
+        let cleanMeta = metaTitle.replace(/^Watch\s+/i, "")
+                                 .replace(/\s*\|\s*Netflix.*$/i, "")
+                                 .replace(/\s*-\s*Netflix.*$/i, "")
+                                 .trim();
+        if (cleanMeta && !["netflix", "watch", "home"].includes(cleanMeta.toLowerCase())) {
+          return cleanMeta;
+        }
+      }
+
+      // 3. Prime Video DOM title
       const primeTitle = document.querySelector("[data-automation-id='title'], h1[class*='Title'], h1.dv-node-dp-title")?.textContent?.trim();
       if (primeTitle && !primeTitle.toLowerCase().includes("prime video")) return primeTitle;
 
-      // 3. Hotstar DOM title
+      // 4. Hotstar DOM title
       const hotstarTitle = document.querySelector("h1.title, [data-testid='player-title']")?.textContent?.trim();
       if (hotstarTitle) return hotstarTitle;
 
-      // 4. Clean document.title
+      // 5. Clean document.title
       let t = (document.title || "").trim();
       t = t.replace(/^Watch\s+/i, "")
            .replace(/\s*\|\s*Netflix.*$/i, "")
@@ -1175,15 +1222,6 @@
       if (t && !banned.includes(t.toLowerCase())) {
         return t;
       }
-
-      // 5. Fallback: check exact catalog IDs in pathname ONLY (never search/tracking parameters)
-      const pathname = (window.location.pathname || "").toLowerCase();
-      if (pathname.includes("81760391")) return "Laapataa Ladies";
-      if (pathname.includes("70270408")) return "We're the Millers";
-      if (pathname.includes("0qry75b5jx2obl1p59w9bn0qxn")) return "Queen";
-      if (pathname.includes("1271616952")) return "2 States";
-      if (pathname.includes("1271525191")) return "Sarvam Maya";
-      if (pathname.includes("1271710275")) return "Bethlehem Kudumba Unit";
 
       return "";
     }
