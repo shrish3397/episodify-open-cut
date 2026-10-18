@@ -790,8 +790,10 @@ function jumpToEpisode(epNum) {
 
     const targetSec = timestampToSeconds(ep.start_time);
 
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
+    chrome.tabs.query({ active: true }, (tabs) => {
+      const tab = (tabs || []).find(t => t.active && (t.url?.includes("primevideo.com") || t.url?.includes("amazon.") || t.url?.includes("netflix.com") || t.url?.includes("hotstar.com") || t.url?.includes("youtube.com")))
+        || (tabs || []).find(t => t.active)
+        || (tabs || [])[0];
       if (!tab?.id) return;
 
       const payload = {
