@@ -445,11 +445,23 @@
       return;
     }
 
-    const v = activeVideo || document.querySelector("video");
+    const v = activeVideo || findBestVideoElement() || document.querySelector("video");
     if (v) {
+      // DRM-Safe Seek: Pause briefly before mutating currentTime to prevent EME/MSE buffer collisions
       try {
-        v.currentTime = targetSec;
+        if (!v.paused) {
+          v.pause();
+        }
       } catch (e) {}
+
+      // Clamp target time to safe range
+      const safeTime = Math.max(0, Number.isFinite(v.duration) && v.duration > 0 ? Math.min(targetSec, v.duration - 0.5) : targetSec);
+
+      try {
+        v.currentTime = safeTime;
+      } catch (e) {
+        console.warn("[EOC-Shadow] Video seek failed:", e);
+      }
 
       let resumed = false;
       const doResume = () => {
@@ -467,7 +479,7 @@
       v.addEventListener("canplay", doResume, { once: true });
 
       // Fallback in case seeked already completed or didn't fire
-      setTimeout(doResume, 800);
+      setTimeout(doResume, 600);
     } else {
       showHud(7);
     }
@@ -814,6 +826,12 @@
     const videos = Array.from(document.querySelectorAll("video"));
     if (videos.length === 0) return null;
     if (videos.length === 1) return videos[0];
+
+    // Priority 0: Dedicated OTT player surface videos (Prime Video, Hotstar, Netflix, YouTube)
+    const ottVideo = document.querySelector(
+      "div.atvwebplayersdk-video-surface video, .webPlayerUIContainer video, .shaka-video-container video, [data-testid*='player-video'] video, .video-player video, .html5-main-video"
+    );
+    if (ottVideo) return ottVideo;
 
     // Priority 1: Video currently playing with feature length (> 300s)
     const playingFeature = videos.find((v) => !v.paused && v.duration > 300);
