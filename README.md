@@ -17,9 +17,12 @@ Streaming audiences frequently hesitate to commit to a 2.5-hour film on a weekni
 
 **Episodify Open Cut** bridges this gap:
 * **Analyzes narrative beats** using classical screenplay structure and long-context multimodal AI (*Gemini 3.8 Flash*, local *Ollama*, or deterministic heuristics).
-* **Slices feature films into 25–45 minute bingeable episodes** at organic act breaks and cliffhangers.
-* **Micro-snaps cuts** to dialogue silences ($\ge 3.0\text{s}$ lull) with active subtitle and speech guards so characters are never cut off mid-dialogue.
-* **Seamlessly pauses and overlays native OTT players** (Hotstar, Netflix, Prime Video, YouTube) via an open metadata overlay protocol without touching, decrypting, or re-hosting copyrighted video streams.
+* **Slices feature films into 25–45 minute bingeable episodes** at organic act breaks and thematic cliffhangers.
+* **Micro-snaps cuts** to dialogue silences ($\ge 3.0\text{s}$ lull) with active subtitle and speech guards so characters are never cut off mid-sentence.
+* **High-Res TV Menu Tab**: Displays a sleek, widescreen post-play menu card at every break featuring the upcoming episode ("UP NEXT"), start timestamp, previous part recap, and preview teaser.
+* **Instant, Glitch-Free Playback (< 200ms)**: Seamlessly resumes playback or jumps between episodes on Amazon Prime Video, Netflix, Disney+ Hotstar, and YouTube without player freezing, DRM stutter, or buffer desynchronization.
+* **Auto-Vanishing In-Player HUD**: An unobtrusive floating pill displays episode progress and countdown, fading out after 7 seconds for 100% distraction-free viewing.
+* **Zero-DRM Architecture**: Operates as a pure client-side metadata overlay protocol without decrypting, modifying, or re-hosting video streams.
 
 ---
 
@@ -39,19 +42,19 @@ No Python setup or coding required to start watching:
    - Click **Load unpacked** and select the [`extension/`](extension/) directory from this repository.
    - Pin the **Episodify Open Cut** extension icon to your toolbar.
 
-3. **Open Hotstar, Netflix, or Prime Video and enjoy!**
-   - Play any supported movie (like *Queen*, *Laapataa Ladies*, *2 States*, *We're the Millers*, or *The Batman*).
-   - Episodify automatically detects the film, operates in silent standby until an act break arrives, and pauses cleanly between scenes with television-style Cliffhangers, Recaps, and *"Play Next Part"* cards!
+3. **Open Prime Video, Netflix, or Hotstar and enjoy!**
+   - Play any movie (such as *Queen*, *Laapataa Ladies*, *I Hate Luv Storys*, *2 States*, *We're the Millers*, or *The Batman*).
+   - Episodify automatically connects to the player, manages act breaks seamlessly, and presents a modern TV-style break menu with instant resume buttons.
 
-### 🤖 Slicing ANY New / Uncataloged Movie with In-Browser Gemini AI (Zero-Terminal)
-Want to episodify an uncataloged movie on Netflix, Prime Video, Hotstar, or YouTube?
-1. Open and play the movie on your streaming tab.
-2. Click the **Episodify** extension icon in your browser toolbar.
-3. Click **🤖 Episodify with Gemini AI** in the popup footer.
-4. Paste your free Google Gemini API key (get one in 10 seconds at [Google AI Studio](https://aistudio.google.com/app/apikey)) — saved securely in your local browser storage.
+### 🤖 Slicing ANY Movie with the In-Browser AI Slicer (Zero-Terminal)
+Want to episodify any uncataloged movie on Prime Video, Netflix, Hotstar, or YouTube?
+1. Open and start playing the movie on your streaming tab.
+2. Click the **Episodify** extension icon in your toolbar.
+3. Click **✨ AI Slicer** in the popup footer.
+4. Enter your free Google Gemini API key (get one in 10 seconds at [Google AI Studio](https://aistudio.google.com/app/apikey)) — saved securely in your browser's local storage.
 5. Select your desired episode count (3 to 6 episodes) and click **⚡ Slice Movie with Gemini AI**.
-6. Gemini analyzes the screenplay narrative structure, dialogue transitions, and dramatic cliffhangers, instantly transforming your movie into a miniseries playing right in your browser!
-7. *(Optional)* Click **📤 Publish Cut to Registry** to share your new cut with the global Episodify community via a 1-click GitHub Pull Request.
+6. Gemini automatically analyzes narrative beats, scene continuity, and dialogue transitions, creating a tailored miniseries cut that is instantly applied to your player!
+7. *(Optional)* Click **📤 Publish Cut** to submit your recipe to the open community registry via a 1-click GitHub Pull Request.
 
 ---
 
@@ -241,20 +244,51 @@ eoc export recipes/bethlehem-kudumba-unit-2026.eoc.json --format srt
 
 ---
 
-## 7. Browser Extension Setup
+## 7. Browser Extension & In-Player Experience
 
-The browser extension works in Chrome, Brave, Edge, and any Chromium-compatible browser:
+The client extension runs on Manifest V3 in Chrome, Brave, Edge, and all Chromium browsers:
 
-1. Open your browser and navigate to `chrome://extensions/`.
-2. Toggle on **Developer mode** in the top right corner.
-3. Click **Load unpacked** and select the `extension/` directory from this repository.
-4. Pin the **Episodify Open Cut** extension icon to your toolbar.
+```
++-----------------------------------------------------------------------------+
+|                                                                             |
+|   [ ✓ Part 1 Complete ]                        [ Part 2 Ready ]             |
+|   NOW UP NEXT                                                               |
+|   Part 2: The Rules of Engagement                                           |
+|   Starts at 00:34:40  •  Finished Part 1 (00:00:00 ➔ 00:34:40)              |
+|                                                                             |
+|   +-----------------------------------+ +---------------------------------+ |
+|   | 📖 WHAT JUST HAPPENED             | | 🎬 COMING UP IN PART 2          | |
+|   | Recap of narrative beats from     | | Preview teaser and dramatic     | |
+|   | the concluding episode...         | | cliffhanger hook for Part 2...  | |
+|   +-----------------------------------+ +---------------------------------+ |
+|                                                                             |
+|         [ Continue Watching Film ]     [ ▶ Play Part 2: The Rules... ]      |
++-----------------------------------------------------------------------------+
+```
 
-### Interactive Demo Player
+### Key In-Player Features
 
-Test the in-player modal and act break triggers without needing an active OTT subscription:
-* Open `extension/demo/player.html` directly in your browser.
-* Click **Fast Forward to 5s before Break 1** or let the video reach the break boundary to see the cinematic overlay trigger in real-time.
+* **High-Res TV Menu Tab**: Wide (`860px`, `90%` width), frosted-glass post-play menu card with dual panels:
+  - **Left**: "What Just Happened" (Part recap).
+  - **Right**: "Coming Up" (highlighted preview teaser with glowing red accent).
+* **Instant, Glitch-Free Resumption (< 200ms)**:
+  - Event-driven `seekAndPlay()` pipeline halts race conditions.
+  - Waits for native `seeked` and `canplay` events before requesting playback, preventing buffer freezes on Prime Video and Widevine DRM streams.
+  - Native play button detection keeps streaming platform UI states synchronized.
+* **Auto-Vanishing Episode HUD**:
+  - Displays a clean floating pill at the bottom with the current episode title and remaining time.
+  - Automatically fades out after 7 seconds during playback for distraction-free viewing.
+  - Re-appears momentarily on mouse movement or chapter jumps.
+* **Dual-Overlay Suppression**:
+  - Automatically hides the bottom floating HUD pill whenever the full-screen break menu tab is visible, eliminating screen clutter.
+* **Netflix DRM Safe Bridge**:
+  - Employs a dedicated main-world communication bridge (`netflix-bridge.js`) to interact with Netflix's internal video player API, resolving Widevine error `M7375`.
+
+### Interactive Local Demo Player
+
+Experience the overlay without an active streaming subscription:
+* Open [`extension/demo/player.html`](extension/demo/player.html) directly in any browser.
+* Test episode jumps, auto-vanishing HUD countdowns, and break triggers in real time.
 
 ---
 
