@@ -1492,10 +1492,42 @@ function getTimeoutSignal(ms) {
   return controller.signal;
 }
 
+// Sanitize API key to prevent corrupted query strings, trailing parameters, or URL fragments
+function sanitizeGeminiApiKey(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  let key = raw.trim();
+
+  // 1. If user pasted a full URL or query string with key=
+  if (key.includes("key=")) {
+    const match = key.match(/[?&]?key=([A-Za-z0-9_\-]+)/i);
+    if (match && match[1]) {
+      key = match[1];
+    }
+  }
+
+  // 2. Extract standard Google AIzaSy API key pattern
+  const aizaMatch = key.match(/(AIzaSy[A-Za-z0-9_\-]{30,45})/);
+  if (aizaMatch && aizaMatch[1]) {
+    return aizaMatch[1];
+  }
+
+  // 3. Fallback: Strip query string delimiters (&, ?, #), quotes, and whitespace
+  key = key.replace(/^["']+|["']+$/g, "").split(/[&?#\s]/)[0].trim();
+  return key;
+}
+
 // Query Google ModelService dynamically to find active models for this user's API key
 async function getAvailableGeminiModels(apiKey) {
+  const cleanKey = sanitizeGeminiApiKey(apiKey);
+  if (!cleanKey) {
+    throw new Error("Invalid or missing Google Gemini API key. Please check your key at https://aistudio.google.com/app/apikey");
+  }
+
   try {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`, {
+      headers: {
+        "x-goog-api-key": cleanKey,
+      },
       signal: getTimeoutSignal(4000),
     });
     if (resp.ok) {
@@ -1607,7 +1639,11 @@ Respond ONLY with valid JSON matching this exact structure:
   ]
 }`;
 
-  const candidateModels = await getAvailableGeminiModels(apiKey);
+  const cleanKey = sanitizeGeminiApiKey(apiKey);
+  if (!cleanKey) {
+    throw new Error("Invalid or missing Google Gemini API key. Please check your key at https://aistudio.google.com/app/apikey");
+  }
+  const candidateModels = await getAvailableGeminiModels(cleanKey);
   let lastError = null;
 
   for (const model of candidateModels) {
@@ -1616,7 +1652,7 @@ Respond ONLY with valid JSON matching this exact structure:
       if (typeof onStatusUpdate === "function") {
         onStatusUpdate(`Analyzing narrative arc with ${model}...`);
       }
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
       const generationConfig = {
         responseMimeType: "application/json",
@@ -1630,7 +1666,10 @@ Respond ONLY with valid JSON matching this exact structure:
 
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": cleanKey,
+        },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: generationConfig,
@@ -1641,6 +1680,12 @@ Respond ONLY with valid JSON matching this exact structure:
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
         const errMsg = errJson?.error?.message || response.statusText || `HTTP ${response.status}`;
+        if (response.status === 400 && (errMsg.includes("API key not valid") || errMsg.includes("Cannot bind query parameter"))) {
+          throw new Error(`Invalid Gemini API key format. Please check or regenerate your key at https://aistudio.google.com/app/apikey`);
+        }
+        if (response.status === 403 || errMsg.includes("unauthorized") || errMsg.includes("PERMISSION_DENIED")) {
+          throw new Error(`Unauthorized Gemini API key. Please generate a new free key at https://aistudio.google.com/app/apikey`);
+        }
         throw new Error(`${model} error: ${errMsg}`);
       }
 
@@ -1710,21 +1755,41 @@ function setupAiSlicerModal() {
   // Load saved Gemini API key
   chrome.storage?.local?.get(["gemini_api_key"], (res) => {
     if (res?.gemini_api_key) {
-      keyInput.value = res.gemini_api_key;
+      const cleanKey = sanitizeGeminiApiKey(res.gemini_api_key);
+      keyInput.value = cleanKey;
+      if (cleanKey !== res.gemini_api_key) {
+        chrome.storage?.local?.set({ gemini_api_key: cleanKey });
+      }
       keySavedHint.style.display = "block";
       keySavedHint.textContent = "✓ Key saved securely in your browser";
     }
   });
 
+  // Automatically clean API key on paste or input
+  keyInput?.addEventListener("input", () => {
+    const raw = keyInput.value;
+    const clean = sanitizeGeminiApiKey(raw);
+    if (clean !== raw && (raw.includes("&") || raw.includes("?") || raw.includes("key=") || raw.startsWith("http"))) {
+      keyInput.value = clean;
+    }
+  });
+
   // Save API key
   saveKeyBtn?.addEventListener("click", () => {
-    const val = keyInput.value.trim();
-    if (val) {
-      chrome.storage?.local?.set({ gemini_api_key: val }, () => {
+    const cleanKey = sanitizeGeminiApiKey(keyInput.value);
+    keyInput.value = cleanKey;
+    if (cleanKey) {
+      chrome.storage?.local?.set({ gemini_api_key: cleanKey }, () => {
         keySavedHint.style.display = "block";
         keySavedHint.style.color = "";
         keySavedHint.textContent = "✓ Key saved securely in your browser";
       });
+    } else {
+      keyInput.focus();
+      keyInput.style.borderColor = "#ef4444";
+      keySavedHint.style.display = "block";
+      keySavedHint.style.color = "#ef4444";
+      keySavedHint.textContent = "⚠️ Please paste a valid Gemini API key (starts with AIzaSy)";
     }
   });
 
@@ -1846,13 +1911,14 @@ function setupAiSlicerModal() {
 
   // Trigger Gemini AI generation
   generateBtn?.addEventListener("click", async () => {
-    const apiKey = keyInput.value.trim();
+    const apiKey = sanitizeGeminiApiKey(keyInput.value);
+    keyInput.value = apiKey;
     if (!apiKey) {
       keyInput.focus();
       keyInput.style.borderColor = "#ef4444";
       keySavedHint.style.display = "block";
       keySavedHint.style.color = "#ef4444";
-      keySavedHint.textContent = "⚠️ Please enter your Google Gemini API key first";
+      keySavedHint.textContent = "⚠️ Please enter a valid Google Gemini API key first";
       return;
     }
     keyInput.style.borderColor = "";

@@ -189,8 +189,13 @@ class HeuristicAnalyzer:
 class GeminiAnalyzer:
     """Narrative segmenter utilizing Google Gemini API (gemini-3.8-flash)."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-3.8-flash"):
-        self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash"):
+        raw_key = api_key or os.environ.get("GEMINI_API_KEY")
+        if raw_key:
+            m = re.search(r"(AIzaSy[A-Za-z0-9_\-]{30,45})", raw_key)
+            self.api_key = m.group(1) if m else raw_key.strip().split("&")[0].split("?")[0].strip()
+        else:
+            self.api_key = None
         self.model = model
 
     def analyze(
@@ -248,9 +253,11 @@ For each episode, provide:
             return self._call_rest_api(user_prompt)
 
     def _call_rest_api(self, prompt: str) -> List[Dict[str, Any]]:
+        import urllib.parse
+        clean_key = urllib.parse.quote_plus(self.api_key or "")
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
+            f"{self.model}:generateContent?key={clean_key}"
         )
         payload = {
             "system_instruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
@@ -260,7 +267,10 @@ For each episode, provide:
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.api_key or "",
+            },
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=60) as response:
