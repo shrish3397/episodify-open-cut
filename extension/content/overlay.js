@@ -537,7 +537,14 @@
       return;
     }
 
-    const v = findBestVideoElement();
+    // Always prefer the active video currently rendering/playing the movie!
+    let v = null;
+    if (activeVideo && document.contains(activeVideo) && (!activeVideo.paused || activeVideo.currentTime > 0)) {
+      v = activeVideo;
+    } else {
+      v = findBestVideoElement();
+    }
+
     if (!v) {
       console.warn("[EOC-Shadow] No video element found to seek!");
       showHud(7);
@@ -565,23 +572,34 @@
       safeTime = Math.min(safeTime, maxKnownDuration - 0.5);
     }
 
-    // Directly set video currentTime and dispatch seeking event
+    // Directly set video currentTime
     try {
       v.currentTime = safeTime;
-      v.dispatchEvent(new Event("seeking", { bubbles: true }));
       console.log(`[EOC-Shadow] Seeked HTML5 video to ${safeTime}s (Target: ${targetSec}s, Film Duration: ${maxKnownDuration}s)`);
     } catch (e) {
       console.warn("[EOC-Shadow] Video seek failed:", e);
     }
 
-    showHud(7);
+    // Verification check: reinforce seek if player buffer delayed or snapped back
+    setTimeout(() => {
+      if (v && Math.abs(v.currentTime - safeTime) > 3.0 && !isBreakActive) {
+        try {
+          v.currentTime = safeTime;
+        } catch (e) {}
+      }
+      if (v && v.paused && !isBreakActive) {
+        resumeVideoPlayback();
+      }
+    }, 150);
 
     // If video is currently paused, trigger playback resumption cleanly
     if (v.paused) {
       setTimeout(() => {
         resumeVideoPlayback();
-      }, 100);
+      }, 50);
     }
+
+    showHud(7);
   }
 
   function seekVideoPlayback(targetSec) {
@@ -916,49 +934,50 @@
 
   // Principle 2: Bind directly to HTML5 video element (prioritizing main feature player)
   function findBestVideoElement() {
-    // Priority 0: Dedicated Prime Video main movie player surface (ALWAYS check first!)
-    const primeMovieVideo = document.querySelector(
-      "div.atvwebplayersdk-video-surface video, .webPlayerSDKContainer video, div[class*='video-surface'] video, .rendererContainer video, div[class*='webPlayerSDK'] video"
-    );
-    if (primeMovieVideo && document.contains(primeMovieVideo)) {
-      return primeMovieVideo;
-    }
-
-    // Priority 1: Dedicated Netflix, Hotstar, YouTube player surface
-    const otherOttVideo = document.querySelector(
-      ".shaka-video-container video, .webPlayerUIContainer video, [data-testid*='player-video'] video, .video-player video, .html5-main-video"
-    );
-    if (otherOttVideo && document.contains(otherOttVideo)) {
-      return otherOttVideo;
-    }
-
-    const allVideos = Array.from(document.querySelectorAll("video"));
+    const allVideos = Array.from(document.querySelectorAll("video")).filter((v) => document.contains(v));
     if (allVideos.length === 0) return null;
     if (allVideos.length === 1) return allVideos[0];
 
-    // Exclude preview, trailer, and hero background videos
-    const candidateVideos = allVideos.filter((v) => {
-      const parent = v.closest("[class*='trailer'], [class*='preview'], [class*='hero-video'], [data-automation-id*='trailer']");
-      if (parent) return false;
-      const rect = v.getBoundingClientRect();
-      return rect.width > 200 && rect.height > 120;
-    });
-
-    const pool = candidateVideos.length > 0 ? candidateVideos : allVideos;
-
-    // Pick currently playing feature video
-    const playing = pool.find((v) => !v.paused);
-    if (playing) return playing;
-
-    // Pick video with longest duration
-    const sorted = [...pool].sort((a, b) => (b.duration || 0) - (a.duration || 0));
-    if (sorted[0]) return sorted[0];
-
-    if (activeVideo && pool.includes(activeVideo)) {
+    // 1. If activeVideo is still attached to the document and actively playing or was played, retain it!
+    if (activeVideo && allVideos.includes(activeVideo) && (!activeVideo.paused || activeVideo.currentTime > 0)) {
       return activeVideo;
     }
 
-    return pool[0];
+    // 2. Score candidate videos based on playing state, dimensions, duration, and container
+    let bestVideo = null;
+    let bestScore = -999;
+
+    for (const v of allVideos) {
+      let score = 0;
+      const rect = v.getBoundingClientRect();
+      const isVisible = rect.width > 200 && rect.height > 120;
+      const isTrailerOrPreview = !!v.closest("[class*='trailer'], [class*='preview'], [class*='hero-video'], [data-automation-id*='trailer']");
+
+      if (isTrailerOrPreview) score -= 100;
+      if (isVisible) score += 30;
+      if (!v.paused) score += 60; // Currently playing video is highest priority!
+      if (v.currentTime > 0) score += 25;
+      if (v.readyState >= 2) score += 15;
+      if (Number.isFinite(v.duration) && v.duration > 300) score += 40; // Full feature length!
+
+      // Dedicated player surfaces get a bonus if visible
+      if (v.closest("div.atvwebplayersdk-video-surface, .webPlayerSDKContainer, .shaka-video-container, .webPlayerUIContainer, .rendererContainer, [data-testid*='player-video']")) {
+        score += 20;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestVideo = v;
+      }
+    }
+
+    if (bestVideo) return bestVideo;
+
+    if (activeVideo && allVideos.includes(activeVideo)) {
+      return activeVideo;
+    }
+
+    return allVideos[0];
   }
 
   // Precision 250ms loop to guarantee no episode cut is ever missed even if timeupdate is throttled
