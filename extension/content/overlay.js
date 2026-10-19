@@ -11,6 +11,11 @@
 (function () {
   "use strict";
 
+  // Clean up any existing instances if script is re-injected without page refresh
+  if (typeof window.__EOC_CLEANUP__ === "function") {
+    try { window.__EOC_CLEANUP__(); } catch (e) {}
+  }
+
   // State management
   let activeVideo = null;
   let activeRecipe = null;
@@ -578,6 +583,35 @@
       console.log(`[EOC-Shadow] Seeked HTML5 video to ${safeTime}s (Target: ${targetSec}s, Film Duration: ${maxKnownDuration}s)`);
     } catch (e) {
       console.warn("[EOC-Shadow] Video seek failed:", e);
+    }
+
+    // Also interact with timeline slider/scrubber if present (Prime Video, YouTube, OTT)
+    const sliders = Array.from(document.querySelectorAll(
+      '[role="slider"], input[type="range"], .atvwebplayersdk-progressbar-container, [data-testid*="progress-bar"], [data-testid*="seekbar"], .rendererContainer [class*="slider"]'
+    ));
+    for (const slider of sliders) {
+      try {
+        const max = parseFloat(slider.getAttribute("aria-valuemax") || slider.max) || maxKnownDuration;
+        if (max > 60) {
+          const fraction = Math.min(1, Math.max(0, safeTime / max));
+          const rect = slider.getBoundingClientRect();
+          if (rect.width > 20) {
+            const clickX = rect.left + rect.width * fraction;
+            const clickY = rect.top + rect.height / 2;
+            const eventOpts = { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY, pageX: clickX, pageY: clickY };
+            slider.dispatchEvent(new PointerEvent("pointerdown", eventOpts));
+            slider.dispatchEvent(new MouseEvent("mousedown", eventOpts));
+            slider.dispatchEvent(new PointerEvent("pointerup", eventOpts));
+            slider.dispatchEvent(new MouseEvent("mouseup", eventOpts));
+            slider.dispatchEvent(new MouseEvent("click", eventOpts));
+          }
+          if (slider.value !== undefined) {
+            slider.value = safeTime;
+            slider.dispatchEvent(new Event("input", { bubbles: true }));
+            slider.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+      } catch (e) {}
     }
 
     // Verification check: reinforce seek if player buffer delayed or snapped back
@@ -1697,6 +1731,15 @@
     hideModal: hideEpisodeBreakModal,
     halt: haltVideoPlayback,
     resume: resumeVideoPlayback,
+  };
+
+  // Register cleanup function
+  window.__EOC_CLEANUP__ = () => {
+    if (cutCheckInterval) clearInterval(cutCheckInterval);
+    if (pauseEnforcementInterval) clearInterval(pauseEnforcementInterval);
+    if (hostElement && hostElement.parentNode) {
+      hostElement.parentNode.removeChild(hostElement);
+    }
   };
 
   // Auto-init on page ready

@@ -800,6 +800,109 @@ function jumpToEpisode(epNum) {
       const tab = tabs?.[0];
       if (!tab?.id) return;
 
+      // 1. Direct Page-Level Seek Injection (Bypasses any content script disconnections & acts directly on live video)
+      if (chrome.scripting) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (targetSeconds, episodeNumber) => {
+            console.log("[EOC-Direct] Performing direct page seek to:", targetSeconds, "s (Part " + episodeNumber + ")");
+            const videos = Array.from(document.querySelectorAll("video"));
+            if (videos.length === 0) return;
+
+            const playing = videos.find((v) => !v.paused);
+            const feature = videos.find((v) => Number.isFinite(v.duration) && v.duration > 300);
+            const targetVideo = playing || feature || videos[videos.length - 1] || videos[0];
+
+            if (targetVideo) {
+              try {
+                targetVideo.currentTime = targetSeconds;
+                if (typeof targetVideo.fastSeek === "function") {
+                  try { targetVideo.fastSeek(targetSeconds); } catch (e) {}
+                }
+              } catch (e) {
+                console.warn("[EOC-Direct] currentTime assign error:", e);
+              }
+              // Also sync any other actively playing video tag
+              videos.forEach((v) => {
+                if (v !== targetVideo && !v.paused) {
+                  try { v.currentTime = targetSeconds; } catch (e) {}
+                }
+              });
+            }
+
+            // Native Seekbar / Scrubber Slider Interaction (Prime Video, YouTube, OTT)
+            const duration = (targetVideo && Number.isFinite(targetVideo.duration) && targetVideo.duration > 300)
+              ? targetVideo.duration
+              : 7200;
+
+            const sliders = Array.from(document.querySelectorAll(
+              '[role="slider"], input[type="range"], .atvwebplayersdk-progressbar-container, [data-testid*="progress-bar"], [data-testid*="seekbar"], .rendererContainer [class*="slider"]'
+            ));
+
+            for (const slider of sliders) {
+              try {
+                const max = parseFloat(slider.getAttribute("aria-valuemax") || slider.max) || duration;
+                if (max > 60) {
+                  const fraction = Math.min(1, Math.max(0, targetSeconds / max));
+                  const rect = slider.getBoundingClientRect();
+                  if (rect.width > 20) {
+                    const clickX = rect.left + rect.width * fraction;
+                    const clickY = rect.top + rect.height / 2;
+                    const eventOpts = { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY, pageX: clickX, pageY: clickY };
+                    slider.dispatchEvent(new PointerEvent("pointerdown", eventOpts));
+                    slider.dispatchEvent(new MouseEvent("mousedown", eventOpts));
+                    slider.dispatchEvent(new PointerEvent("pointerup", eventOpts));
+                    slider.dispatchEvent(new MouseEvent("mouseup", eventOpts));
+                    slider.dispatchEvent(new MouseEvent("click", eventOpts));
+                  }
+                  if (slider.value !== undefined) {
+                    slider.value = targetSeconds;
+                    slider.dispatchEvent(new Event("input", { bubbles: true }));
+                    slider.dispatchEvent(new Event("change", { bubbles: true }));
+                  }
+                }
+              } catch (e) {}
+            }
+
+            // Ensure playback starts/continues
+            if (targetVideo && targetVideo.paused) {
+              try {
+                const p = targetVideo.play();
+                if (p && typeof p.catch === "function") {
+                  p.catch(() => {
+                    const playBtn = document.querySelector(
+                      '.atvwebplayersdk-playpause-button, button[aria-label*="Play" i]:not([aria-label*="Pause" i]), button[title*="Play" i]:not([title*="Pause" i])'
+                    );
+                    if (playBtn) playBtn.click();
+                  });
+                }
+              } catch (e) {}
+            }
+
+            // Netflix direct API fallback
+            if (location.hostname.includes("netflix.com")) {
+              try {
+                const vp = window.netflix?.appContext?.state?.playerApp?.getAPI()?.videoPlayer;
+                if (vp) {
+                  const sids = vp.getAllPlayerSessionIds();
+                  if (sids && sids.length > 0) {
+                    const p = vp.getVideoPlayerBySessionId(sids[sids.length - 1]);
+                    if (p) {
+                      p.seek(targetSeconds * 1000);
+                      p.play();
+                    }
+                  }
+                }
+              } catch (e) {}
+            }
+          },
+          args: [targetSec, num],
+        }).catch((err) => {
+          console.warn("[EOC-Popup] direct script seek error:", err);
+        });
+      }
+
+      // 2. Synchronize in-player HUD pill and state tracking via message
       const payload = {
         action: "JUMP_TO_EPISODE",
         episode_number: num,
