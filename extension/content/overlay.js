@@ -55,12 +55,15 @@
   const SHADOW_STYLES = `
     :host {
       all: initial;
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 2147483647;
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      pointer-events: none !important;
+      z-index: 2147483647 !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
       box-sizing: border-box;
+      display: block !important;
     }
 
     *, *::before, *::after {
@@ -73,22 +76,25 @@
     .eoc-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(8, 10, 15, 0.72);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      width: 100vw;
+      height: 100vh;
+      background: rgba(8, 10, 15, 0.76);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       opacity: 0;
       pointer-events: none;
       display: none;
       align-items: center;
       justify-content: center;
       padding: 24px;
-      z-index: 1000;
+      z-index: 2147483647;
+      box-sizing: border-box;
     }
 
     .eoc-backdrop.visible {
-      display: flex;
-      opacity: 1;
-      pointer-events: auto;
+      display: flex !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
     }
 
     /* Suppress bottom floating HUD pill completely while break card is visible */
@@ -240,9 +246,9 @@
     .eoc-actions {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 14px;
       align-items: stretch;
-      margin-top: 22px;
+      margin-top: 24px;
       width: 100%;
       box-sizing: border-box;
     }
@@ -263,22 +269,21 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 13px 14px;
+      padding: 14px 16px;
       border-radius: 12px;
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 700;
       cursor: pointer;
       border: none;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: inherit;
       width: 100%;
-      min-height: 48px;
+      min-height: 50px;
       box-sizing: border-box;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: keep-all;
       text-align: center;
-      line-height: 1.2;
+      line-height: 1.25;
     }
 
     .eoc-btn-secondary {
@@ -353,7 +358,7 @@
 
   // Native multi-layer pause (Hotstar / Netflix / Prime / standard HTML5)
   function haltVideoPlayback(targetSec) {
-    console.log("[EOC-Shadow] Halting video playback pipeline...");
+    console.log("[EOC-Shadow] Halting video playback pipeline (targetSec:", targetSec, ")...");
 
     const isNetflix = location.hostname.includes("netflix.com");
 
@@ -362,9 +367,14 @@
       window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
     }
 
-    const v = activeVideo || findBestVideoElement() || document.querySelector("video");
+    // 2. Direct HTML5 pause across ALL video elements on page
+    document.querySelectorAll("video").forEach((vid) => {
+      try {
+        vid.pause();
+      } catch (e) {}
+    });
 
-    // 2. Direct HTML5 pause
+    const v = activeVideo || findBestVideoElement() || document.querySelector("video");
     if (v) {
       try {
         v.pause();
@@ -372,39 +382,42 @@
     }
 
     // 3. Native OTT pause buttons across Prime Video, Hotstar, YouTube, etc.
-    if (!isNetflix) {
+    // SAFETY: Only click a button if video is NOT yet paused. NEVER click a button whose label indicates "Play"!
+    if (!isNetflix && v && !v.paused) {
       try {
-        const selectors = [
-          '.atvwebplayersdk-playpause-button[aria-label*="Pause" i]',
-          '.atvwebplayersdk-playpause-button',
-          'button[data-title*="Pause" i]',
-          'button[aria-label*="Pause" i]',
-          'button[title*="Pause" i]',
-          '[data-testid*="pause" i]',
-          'button.play-pause-btn'
-        ];
-        for (const sel of selectors) {
-          const btn = document.querySelector(sel);
-          if (btn) {
+        const candidateButtons = document.querySelectorAll(
+          '.atvwebplayersdk-playpause-button, button[data-title], button[aria-label], button[title], [data-testid*="pause"], button.play-pause-btn'
+        );
+        for (const btn of candidateButtons) {
+          const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
+          const title = (btn.getAttribute("title") || btn.getAttribute("data-title") || "").toLowerCase();
+          const testid = (btn.getAttribute("data-testid") || "").toLowerCase();
+          const combined = aria + " " + title + " " + testid;
+
+          // If button represents Play, clicking it would unpause/resume playback!
+          if (combined.includes("play") && !combined.includes("pause")) {
+            continue;
+          }
+
+          if (combined.includes("pause")) {
             btn.click();
             break;
           }
         }
       } catch (e) {}
 
-      // Dispatch Spacebar keydown to ensure player pauses
-      const currentVid = v || findBestVideoElement();
-      if (currentVid && !currentVid.paused) {
+      // If still not paused, dispatch pause key 'k' (common video pause key)
+      if (v && !v.paused) {
         try {
-          const spaceEvt = new KeyboardEvent("keydown", {
-            key: " ",
-            code: "Space",
-            keyCode: 32,
-            which: 32,
+          const keyEvt = new KeyboardEvent("keydown", {
+            key: "k",
+            code: "KeyK",
+            keyCode: 75,
+            which: 75,
             bubbles: true,
             cancelable: true
           });
-          (currentVid || document.body).dispatchEvent(spaceEvt);
+          (v || document.body).dispatchEvent(keyEvt);
         } catch (e) {}
       }
     }
@@ -420,10 +433,11 @@
       if (isNetflix) {
         window.postMessage({ source: "EOC_CONTENT", action: "NETFLIX_PAUSE" }, "*");
       }
-      const currentV = activeVideo || findBestVideoElement() || document.querySelector("video");
-      if (currentV && !currentV.paused) {
-        try { currentV.pause(); } catch (e) {}
-      }
+      document.querySelectorAll("video").forEach((vid) => {
+        if (!vid.paused) {
+          try { vid.pause(); } catch (e) {}
+        }
+      });
     }, 150);
   }
 
@@ -585,52 +599,39 @@
       console.warn("[EOC-Shadow] Video seek failed:", e);
     }
 
-    // Also interact with timeline slider/scrubber if present (Prime Video, YouTube, OTT)
-    const sliders = Array.from(document.querySelectorAll(
-      '[role="slider"], input[type="range"], .atvwebplayersdk-progressbar-container, [data-testid*="progress-bar"], [data-testid*="seekbar"], .rendererContainer [class*="slider"]'
-    ));
-    for (const slider of sliders) {
-      try {
-        const max = parseFloat(slider.getAttribute("aria-valuemax") || slider.max) || maxKnownDuration;
-        if (max > 60) {
-          const fraction = Math.min(1, Math.max(0, safeTime / max));
-          const rect = slider.getBoundingClientRect();
-          if (rect.width > 20) {
-            const clickX = rect.left + rect.width * fraction;
-            const clickY = rect.top + rect.height / 2;
-            const eventOpts = { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY, pageX: clickX, pageY: clickY };
-            slider.dispatchEvent(new PointerEvent("pointerdown", eventOpts));
-            slider.dispatchEvent(new MouseEvent("mousedown", eventOpts));
-            slider.dispatchEvent(new PointerEvent("pointerup", eventOpts));
-            slider.dispatchEvent(new MouseEvent("mouseup", eventOpts));
-            slider.dispatchEvent(new MouseEvent("click", eventOpts));
-          }
-          if (slider.value !== undefined) {
-            slider.value = safeTime;
-            slider.dispatchEvent(new Event("input", { bubbles: true }));
-            slider.dispatchEvent(new Event("change", { bubbles: true }));
-          }
-        }
-      } catch (e) {}
-    }
-
-    // Verification check: reinforce seek if player buffer delayed or snapped back
+    // If direct currentTime assignment was resisted (e.g., custom UI sliders), fallback to single clean click
     setTimeout(() => {
       if (v && Math.abs(v.currentTime - safeTime) > 3.0 && !isBreakActive) {
-        try {
-          v.currentTime = safeTime;
-        } catch (e) {}
+        const sliders = Array.from(document.querySelectorAll(
+          '[role="slider"], input[type="range"], .atvwebplayersdk-progressbar-container, [data-testid*="progress-bar"], [data-testid*="seekbar"], .rendererContainer [class*="slider"]'
+        ));
+        for (const slider of sliders) {
+          try {
+            const max = parseFloat(slider.getAttribute("aria-valuemax") || slider.max) || maxKnownDuration;
+            if (max > 60) {
+              const fraction = Math.min(1, Math.max(0, safeTime / max));
+              const rect = slider.getBoundingClientRect();
+              if (rect.width > 20) {
+                const clickX = rect.left + rect.width * fraction;
+                const clickY = rect.top + rect.height / 2;
+                const eventOpts = { bubbles: true, cancelable: true, view: window, clientX: clickX, clientY: clickY, pageX: clickX, pageY: clickY };
+                slider.dispatchEvent(new MouseEvent("click", eventOpts));
+              }
+            }
+          } catch (e) {}
+        }
       }
+
       if (v && v.paused && !isBreakActive) {
         resumeVideoPlayback();
       }
-    }, 150);
+    }, 250);
 
-    // If video is currently paused, trigger playback resumption cleanly
+    // Initial resumption trigger
     if (v.paused) {
       setTimeout(() => {
-        resumeVideoPlayback();
-      }, 50);
+        if (!isBreakActive) resumeVideoPlayback();
+      }, 80);
     }
 
     showHud(7);
@@ -643,8 +644,8 @@
   // Ensure Shadow DOM Host Container is mounted
   function ensureShadowHost() {
     const parentContainer = document.fullscreenElement ||
-      document.querySelector(".shaka-video-container, .player-container, [data-testid*='player-container'], .video-player, .webPlayerUIContainer, .rendererContainer, [class*='webPlayer']") ||
-      document.body;
+      document.body ||
+      document.documentElement;
 
     if (!hostElement || !parentContainer.contains(hostElement)) {
       if (hostElement && hostElement.parentNode) {
@@ -652,6 +653,7 @@
       }
       hostElement = document.createElement("div");
       hostElement.id = "eoc-root";
+      hostElement.style.cssText = "position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; pointer-events: none !important; margin: 0 !important; padding: 0 !important; border: none !important; display: block !important;";
 
       // Attach Shadow DOM for 100% style isolation
       shadowRoot = hostElement.attachShadow({ mode: "open" });
@@ -942,23 +944,27 @@
   function evaluateCutTimestamp(currentSec) {
     updateHud(currentSec);
 
-    if (!activeRecipe || !activeRecipe.episodes || currentSec < ignoreCutUntil || isBreakActive) return;
+    if (!activeRecipe || !activeRecipe.episodes || isBreakActive) return;
 
     for (let i = 0; i < activeRecipe.episodes.length; i++) {
       const ep = activeRecipe.episodes[i];
       const startSec = timestampToSeconds(ep.start_time);
       const endSec = timestampToSeconds(ep.end_time);
 
-      // Trigger if current natural playback reaches within 1s before cut up to 8s after cut.
+      if (currentSec < ignoreCutUntil && currentSec >= startSec && currentSec < (endSec - 2)) {
+        continue;
+      }
+
+      // Trigger if current natural playback reaches within 1.5s before cut up to 15s after cut.
       // Crucial: Must be within this episode's span, never triggering an earlier episode.
-      const isAtCut = currentSec >= (endSec - 1) && currentSec <= (endSec + 8.0) && currentSec >= startSec;
+      const isAtCut = currentSec >= (endSec - 1.5) && currentSec <= (endSec + 15.0) && currentSec >= startSec;
 
       if (isAtCut && !triggeredEpisodeBreaks.has(ep.episode_number)) {
         triggeredEpisodeBreaks.add(ep.episode_number);
         console.log(`[EOC-Shadow] Episode ${ep.episode_number} end reached at ${currentSec}s (Target: ${endSec}s)! Pausing film.`);
         isBreakActive = true;
         hideHud();
-        haltVideoPlayback(currentSec);
+        haltVideoPlayback(endSec);
         const nextEp = activeRecipe.episodes[i + 1] || null;
         showEpisodeBreakModal(ep, nextEp);
         break;
@@ -1051,11 +1057,11 @@
       const cur = Math.floor(video.currentTime);
       if (activeRecipe?.episodes) {
         activeRecipe.episodes.forEach((ep) => {
-          const epStart = timestampToSeconds(ep.start_time);
           const epEnd = timestampToSeconds(ep.end_time);
           if (cur >= epEnd - 0.5) {
             triggeredEpisodeBreaks.add(ep.episode_number);
-          } else if (cur < epStart) {
+          } else if (cur < epEnd - 3) {
+            // User is playing before the cut timestamp; ensure the break modal can trigger!
             triggeredEpisodeBreaks.delete(ep.episode_number);
           }
         });
