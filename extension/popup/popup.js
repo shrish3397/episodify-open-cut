@@ -1375,10 +1375,22 @@ function cleanAndValidateRecipe(raw, fallbackTitle, durationSec, numEpisodes) {
   };
 }
 
+// Helper for resilient fetch timeouts
+function getTimeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new Error("Request timed out")), ms);
+  return controller.signal;
+}
+
 // Query Google ModelService dynamically to find active models for this user's API key
 async function getAvailableGeminiModels(apiKey) {
   try {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
+      signal: getTimeoutSignal(4000),
+    });
     if (resp.ok) {
       const data = await resp.json();
       const models = data?.models || [];
@@ -1386,16 +1398,14 @@ async function getAvailableGeminiModels(apiKey) {
         .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
         .map((m) => m.name.replace(/^models\//, ""));
 
-      // Priority list of modern Flash models
+      // Priority list: Put ultra-fast non-thinking models first for instantaneous 1-3s cuts
       const priorityOrder = [
-        "gemini-2.5-flash",
         "gemini-2.0-flash",
+        "gemini-2.5-flash",
         "gemini-2.5-flash-lite",
-        "gemini-3.8-flash",
-        "gemini-3.5-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-2.0-flash-exp",
-        "gemini-flash"
+        "gemini-1.5-flash",
+        "gemini-flash",
+        "gemini-2.0-flash-exp"
       ];
 
       const orderedList = [];
@@ -1421,29 +1431,29 @@ async function getAvailableGeminiModels(apiKey) {
     }
   } catch (err) {
     if (err.message && err.message.includes("Invalid or unauthorized")) throw err;
-    console.warn("[EOC-AI] Could not list models dynamically, falling back to priority list:", err.message);
+    console.warn("[EOC-AI] Could not list models dynamically (or timed out), falling back to fast priority list:", err.message);
   }
 
   return [
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
+    "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
-    "gemini-3.8-flash",
-    "gemini-3.5-flash",
+    "gemini-1.5-flash",
     "gemini-2.0-flash-exp"
   ];
 }
 
 // Call Google Gemini REST API to slice film into miniseries
-async function generateAiCutWithGemini({ apiKey, movieTitle, durationSec, numEpisodes, cues = [] }) {
+async function generateAiCutWithGemini({ apiKey, movieTitle, durationSec, numEpisodes, cues = [], onStatusUpdate = null }) {
   const durationFormatted = secondsToTimestamp(durationSec);
   const targetActMinutes = Math.round((durationSec / numEpisodes) / 60);
 
   let subtitleContext = "";
   if (cues && cues.length > 0) {
     let sampledCues = cues;
-    if (cues.length > 1200) {
-      const step = Math.ceil(cues.length / 1000);
+    // Keep sample lean (~400 cues max) so prompt remains compact for lightning-fast 2s inference
+    if (cues.length > 500) {
+      const step = Math.ceil(cues.length / 400);
       sampledCues = cues.filter((_, idx) => idx % step === 0);
     }
     const cuesText = sampledCues
@@ -1496,17 +1506,29 @@ Respond ONLY with valid JSON matching this exact structure:
   for (const model of candidateModels) {
     try {
       console.log(`[EOC-AI] Requesting narrative slice with model: ${model}`);
+      if (typeof onStatusUpdate === "function") {
+        onStatusUpdate(`Analyzing narrative arc with ${model}...`);
+      }
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const generationConfig = {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      };
+      // Gemini 2.5 models enable extended reasoning by default which causes 45s+ stalls.
+      // Disabling thinking tokens drops latency to ~1.5s.
+      if (model.includes("2.5")) {
+        generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
+
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-          },
+          generationConfig: generationConfig,
         }),
+        signal: getTimeoutSignal(15000), // 15s per-model timeout
       });
 
       if (!response.ok) {
@@ -1519,11 +1541,21 @@ Respond ONLY with valid JSON matching this exact structure:
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) throw new Error(`${model} returned empty response`);
 
-      const parsed = JSON.parse(rawText);
+      let cleaned = rawText.trim();
+      if (cleaned.startsWith("```json")) {
+        cleaned = cleaned.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      } else if (cleaned.startsWith("```")) {
+        cleaned = cleaned.replace(/^```\s*/, "").replace(/```$/, "").trim();
+      }
+
+      const parsed = JSON.parse(cleaned);
       return cleanAndValidateRecipe(parsed, movieTitle, durationSec, numEpisodes);
     } catch (err) {
       console.warn(`[EOC-AI] Model ${model} attempt failed:`, err.message);
       lastError = err;
+      if (typeof onStatusUpdate === "function") {
+        onStatusUpdate(`Fast retry: Switching to backup model...`);
+      }
     }
   }
 
@@ -1743,13 +1775,14 @@ function setupAiSlicerModal() {
       "Detecting dramatic act breaks & narrative turning points...",
       "Formatting episodic recaps and next-part teasers...",
       "Verifying zero-gap scene boundary continuity...",
+      "Synthesizing miniseries structure with Gemini...",
     ];
     let stepIdx = 0;
     const progressTimer = setInterval(() => {
       if (stepIdx < steps.length) {
         progressText.textContent = steps[stepIdx++];
       }
-    }, 2200);
+    }, 1800);
 
     try {
       const recipe = await generateAiCutWithGemini({
@@ -1758,6 +1791,9 @@ function setupAiSlicerModal() {
         durationSec: runtimeSec,
         numEpisodes: numEpisodes,
         cues: cuesToUse,
+        onStatusUpdate: (msg) => {
+          progressText.textContent = msg;
+        },
       });
 
       clearInterval(progressTimer);
