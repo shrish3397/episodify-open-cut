@@ -1308,6 +1308,9 @@ function cleanMovieTitle(title, url = "") {
   if (checkStr.includes("0j1ps71yn1v42wmlvt1lzmhpjn") || checkStr.includes("pride & prejudice") || checkStr.includes("pride and prejudice")) {
     return "Pride & Prejudice";
   }
+  if (checkStr.includes("80057585") || checkStr.includes("dil dhadakne do") || checkStr.includes("dil dhadakne")) {
+    return "Dil Dhadakne Do";
+  }
 
   if (!title) return "Feature Film";
   let t = title
@@ -1539,12 +1542,14 @@ async function getAvailableGeminiModels(apiKey) {
 
       // Priority list: Put ultra-fast non-thinking models first for instantaneous 1-3s cuts
       const priorityOrder = [
-        "gemini-2.0-flash",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.7-flash",
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite",
-        "gemini-1.5-flash",
-        "gemini-flash",
-        "gemini-2.0-flash-exp"
+        "gemini-2.0-flash",
+        "gemini-1.5-flash"
       ];
 
       const orderedList = [];
@@ -1552,10 +1557,20 @@ async function getAvailableGeminiModels(apiKey) {
         if (contentModels.includes(p)) orderedList.push(p);
       }
       for (const m of contentModels) {
-        if (!orderedList.includes(m) && m.includes("flash")) orderedList.push(m);
-      }
-      for (const m of contentModels) {
-        if (!orderedList.includes(m)) orderedList.push(m);
+        // Exclude deep-research agents, image generation, tts, embedding, live, transcribe
+        if (
+          !orderedList.includes(m) &&
+          m.includes("flash") &&
+          !m.includes("deep-research") &&
+          !m.includes("image") &&
+          !m.includes("tts") &&
+          !m.includes("embed") &&
+          !m.includes("live") &&
+          !m.includes("transcribe") &&
+          !m.includes("aqa")
+        ) {
+          orderedList.push(m);
+        }
       }
 
       if (orderedList.length > 0) {
@@ -1574,11 +1589,14 @@ async function getAvailableGeminiModels(apiKey) {
   }
 
   return [
-    "gemini-2.0-flash",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.7-flash",
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-2.0-flash-exp"
+    "gemini-2.0-flash",
+    "gemini-1.5-flash"
   ];
 }
 
@@ -1658,10 +1676,11 @@ Respond ONLY with valid JSON matching this exact structure:
         responseMimeType: "application/json",
         temperature: 0.2,
       };
-      // Gemini 2.5 models enable extended reasoning by default which causes 45s+ stalls.
-      // Disabling thinking tokens drops latency to ~1.5s.
+      // Disable deep reasoning tokens to ensure instantaneous 1-3s cuts
       if (model.includes("2.5")) {
         generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      } else if (model.includes("3.") || model.includes("3-")) {
+        generationConfig.thinkingConfig = { thinkingLevel: "MINIMAL" };
       }
 
       const response = await fetch(url, {
@@ -1674,7 +1693,7 @@ Respond ONLY with valid JSON matching this exact structure:
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: generationConfig,
         }),
-        signal: getTimeoutSignal(15000), // 15s per-model timeout
+        signal: getTimeoutSignal(8000), // Fast 8s per-model timeout
       });
 
       if (!response.ok) {
@@ -1685,6 +1704,9 @@ Respond ONLY with valid JSON matching this exact structure:
         }
         if (response.status === 403 || errMsg.includes("unauthorized") || errMsg.includes("PERMISSION_DENIED")) {
           throw new Error(`Unauthorized Gemini API key. Please generate a new free key at https://aistudio.google.com/app/apikey`);
+        }
+        if (response.status === 429 || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("quota")) {
+          throw new Error(`Model ${model} free quota limit reached. Trying next model...`);
         }
         throw new Error(`${model} error: ${errMsg}`);
       }
@@ -1711,6 +1733,9 @@ Respond ONLY with valid JSON matching this exact structure:
     }
   }
 
+  if (lastError && (lastError.message.includes("quota") || lastError.message.includes("RESOURCE_EXHAUSTED"))) {
+    throw new Error("Gemini API rate limit reached. Please wait 30 seconds and try again.");
+  }
   throw lastError || new Error("Failed to generate miniseries with Gemini.");
 }
 

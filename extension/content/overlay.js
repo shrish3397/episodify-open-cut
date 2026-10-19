@@ -1398,6 +1398,7 @@
       if (fullUrl.includes("1271525191") || fullUrl.includes("sarvam maya")) return "Sarvam Maya";
       if (fullUrl.includes("1271710275") || fullUrl.includes("bethlehem")) return "Bethlehem Kudumba Unit";
       if (fullUrl.includes("0j1ps71yn1v42wmlvt1lzmhpjn") || fullUrl.includes("pride")) return "Pride & Prejudice";
+      if (fullUrl.includes("80057585") || fullUrl.includes("dil dhadakne")) return "Dil Dhadakne Do";
 
       // 2. Netflix DOM title & OpenGraph tags
       const netflixSelectors = [
